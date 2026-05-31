@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Prompts 集合规则
+    match /prompts/{promptId} {
+      // 任何人可讀
+      allow read: if true;
+
+      // 僅管理員（Custom Claims: admin=true）可寫
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Tags 集合规则
+    match /tags/{tagId} {
+      // 任何人可讀
+      allow read: if true;
+
+      // 僅管理員可寫
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Settings 集合规则
+    match /settings/{document} {
+      // 任何人可讀配置檔
+      allow read: if true;
+
+      // 僅管理員可寫配置檔
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+    "rewrites": [
+        {
+            "source": "/_nvidia/v1/chat/completions",
+            "destination": "/api/nvidia/v1/chat/completions"
+        },
+        {
+            "source": "/_nvidia/:path*",
+            "destination": "/api/nvidia/:path*"
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/$1"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ],
+    "functions": {
+        "api/nvidia/v1/chat/completions.ts": {
+            "maxDuration": 30
+        },
+        "api/nvidia/[...path].ts": {
+            "maxDuration": 30
+        },
+        "api/ai-test.ts": {
+            "maxDuration": 60
+        }
+    }
+}

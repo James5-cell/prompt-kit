@@ -1,0 +1,96 @@
+# ─── Prompt Kit — robots.txt ────────────────────────────────────────────────
+# Canonical domain: https://www.205011.xyz
+# Updated: 2026-05-22
+
+# ── Standard crawlers ───────────────────────────────────────────────────────
+User-agent: *
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+# ── AI / LLM crawlers (explicitly permitted) ────────────────────────────────
+User-agent: GPTBot
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: GoogleOther
+Allow: /
+Allow: /p/
+Allow: /prompts$
+Allow: /prompts/$
+Disallow: /prompts/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /api/
+Disallow: /_nvidia/
+
+# ── Sitemap ──────────────────────────────────────────────────────────────────
+Sitemap: https://www.205011.xyz/sitemap.xml

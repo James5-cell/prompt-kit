@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0a15" />
+      <stop offset="100%" stop-color="#050508" />
+    </linearGradient>
+
+    <!-- Accent Gradient -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4a9eff" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+
+    <!-- Card Border Gradient -->
+    <linearGradient id="cardBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a9eff" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.05" />
+    </linearGradient>
+
+    <!-- Subtle Grid Pattern -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(74, 158, 255, 0.05)" stroke-width="1" />
+    </pattern>
+
+    <!-- Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="40" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)" />
+  <rect width="1200" height="630" fill="url(#grid)" />
+
+  <!-- Abstract Glowing Orbs for Depth -->
+  <circle cx="950" cy="150" r="250" fill="#4a9eff" opacity="0.05" filter="url(#glow)" />
+  <circle cx="1100" cy="450" r="200" fill="#8b5cf6" opacity="0.04" filter="url(#glow)" />
+
+  <!-- Left Side: Text Content -->
+  <g transform="translate(100, 180)">
+    <!-- Decorative Tag -->
+    <rect width="110" height="30" rx="15" fill="rgba(74, 158, 255, 0.1)" stroke="rgba(74, 158, 255, 0.3)" stroke-width="1" />
+    <text x="55" y="19" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#4a9eff" text-anchor="middle" letter-spacing="1">v1.0.0</text>
+
+    <!-- Brand Name / Logo -->
+    <text x="0" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="72" font-weight="800" fill="#ffffff" letter-spacing="-1">Prompt <tspan fill="url(#accentGrad)">Kit</tspan></text>
+
+    <!-- Subtitle -->
+    <text x="0" y="145" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="600" fill="#e0e0e0">AI Prompt 知識庫與工作流工具</text>
+
+    <!-- Tagline -->
+    <text x="0" y="200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="400" fill="#9e9eb0" letter-spacing="0.5">Reusable prompts. Structured workflows.</text>
+  </g>
+
+  <!-- Right Side: Interactive UI Card Visualization -->
+  <g transform="translate(680, 140)">
+    <!-- Main Card -->
+    <rect width="420" height="350" rx="16" fill="#0d0c1b" stroke="url(#cardBorder)" stroke-width="2" />
+
+    <!-- Card Header / Title -->
+    <text x="30" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#ffffff">Translate &amp; Format JSON</text>
+    <rect x="30" y="70" width="70" height="20" rx="10" fill="rgba(139, 92, 246, 0.15)" stroke="rgba(139, 92, 246, 0.3)" stroke-width="1" />
+    <text x="65" y="84" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600" fill="#8b5cf6" text-anchor="middle">Translation</text>
+
+    <!-- Card Body: Prompt text lines -->
+    <text x="30" y="130" font-family="Courier New, Courier, monospace" font-size="14" fill="#a0aec0">You are a professional translator.</text>
+    <text x="30" y="155" font-family="Courier New, Courier, monospace" font-size="14" fill="#a0aec0">Please translate the following content</text>
+    <text x="30" y="180" font-family="Courier New, Courier, monospace" font-size="14" fill="#a0aec0">into Traditional Chinese:</text>
+    
+    <rect x="30" y="205" width="360" height="55" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+    <text x="45" y="227" font-family="Courier New, Courier, monospace" font-size="13" fill="#4a9eff">{"text": "{{input_text}}", "tone": "formal"}</text>
+    <text x="45" y="247" font-family="Courier New, Courier, monospace" font-size="12" fill="#6b7280">// Output schema validation enabled</text>
+
+    <!-- Card Footer -->
+    <line x1="30" y1="285" x2="390" y2="285" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+    
+    <!-- Action buttons inside card mockup -->
+    <rect x="30" y="300" width="80" height="26" rx="6" fill="#4a9eff" />
+    <text x="70" y="317" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Run Prompt</text>
+
+    <rect x="120" y="300" width="70" height="26" rx="6" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+    <text x="155" y="316" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#9e9eb0" text-anchor="middle">Copy</text>
+
+    <!-- Decorative status dot -->
+    <circle cx="380" cy="313" r="5" fill="#10b981" />
+    <text x="365" y="317" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#10b981" text-anchor="end">Active</text>
+  </g>
+</svg>
