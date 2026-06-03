@@ -3,6 +3,7 @@ export type PromptRunResult = {
   latencyMs: number;
   providerUsed: string;
   modelUsed: string;
+  finishReason?: string;
 };
 
 export async function executePrompt(
@@ -121,5 +122,6 @@ export async function executePrompt(
     latencyMs: metadata?.latencyMs ?? 0,
     providerUsed: metadata?.providerUsed ?? input.provider,
     modelUsed: metadata?.modelUsed ?? input.model,
+    finishReason: metadata?.finishReason,
   };
 }

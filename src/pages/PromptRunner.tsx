@@ -744,6 +744,14 @@ function RunnerOutputPanel({
               >
                 {runResult.text}
               </ReactMarkdown>
+              {!isRunning && runResult.finishReason === 'length' && (
+                <div className="flex items-center gap-2 text-xs text-amber-500 mt-4 bg-amber-500/5 border border-amber-500/20 p-3 rounded font-sans">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span>
+                    提示：模型输出已被截断，因为达到了该模型本身的单次最大 Token 限制（{runResult.modelUsed} 强制了输出字数上限）。建议在“系统后台设置”中切换为支持更大输出的引擎（如 Google Gemini）。
+                  </span>
+                </div>
+              )}
               {isRunning && (
                 <div className="flex items-center gap-2 text-xs text-[var(--text-faint)] mt-4 font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse"></span>

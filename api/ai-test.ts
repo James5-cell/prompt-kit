@@ -134,13 +134,21 @@ export default {
             }
 
             const latencyMs = Date.now() - start;
-            console.log(`[ai-test] Stream completed successfully, latency=${latencyMs}ms`);
+            let finishReason = 'unknown';
+            try {
+              finishReason = await result.finishReason;
+            } catch (reasonErr) {
+              console.warn('[ai-test] Failed to get finishReason:', reasonErr);
+            }
+
+            console.log(`[ai-test] Stream completed successfully, latency=${latencyMs}ms, finishReason=${finishReason}`);
             
             sendSSE({
               metadata: {
                 latencyMs,
                 providerUsed: finalProvider,
                 modelUsed: finalModel,
+                finishReason,
               }
             });
           } catch (streamErr: any) {
