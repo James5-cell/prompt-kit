@@ -1,9 +1,10 @@
 import { Timestamp } from 'firebase-admin/firestore';
 
 let db: any = null;
+let dbInitialized = false;
 
 export async function initDb() {
-  if (db) return db;
+  if (dbInitialized) return db;
 
   try {
     const { initializeApp, getApps, cert } = await import('firebase-admin/app');
@@ -16,6 +17,11 @@ export async function initDb() {
         initializeApp({ credential: cert(serviceAccount) });
       } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         initializeApp({ credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS) });
+      } else if (process.env.VERCEL === '1') {
+        console.warn('[Backend DB] firebase-admin credentials missing in Vercel environment. Firestore is disabled to prevent hanging.');
+        dbInitialized = true;
+        db = null;
+        return null;
       } else {
         // Fallback for local development when credentials envs aren't configured
         initializeApp({ projectId: 'prompt-kit-7a67e' });
@@ -23,9 +29,12 @@ export async function initDb() {
     }
 
     db = getFirestore();
+    dbInitialized = true;
     return db;
   } catch (error) {
     console.warn('[Backend DB] Failed to initialize firebase-admin:', error);
+    dbInitialized = true;
+    db = null;
     return null;
   }
 }

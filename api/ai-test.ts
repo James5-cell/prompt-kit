@@ -120,6 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Content-Encoding': 'none',
       ...corsHeaders
     });
 
