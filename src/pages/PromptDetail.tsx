@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil, Zap, Copy as CopyIcon, Check } from 'lucide-react';
+import { ArrowLeft, Pencil, Zap, Copy as CopyIcon, Check, MoreHorizontal } from 'lucide-react';
 import { type Prompt } from '../types';
 import { promptService } from '../services/promptService';
 import { useAuth } from '../auth/AuthContext';
@@ -21,6 +21,7 @@ export default function PromptDetail() {
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -90,12 +91,16 @@ export default function PromptDetail() {
       {/* ── Topbar ─────────────────────────────────────────── */}
       <div className="detail-topbar">
         <Link to="/prompts" className="detail-back-btn">
-          <ArrowLeft size={14} /> Back to Library
+          <ArrowLeft size={14} />
+          <span className="back-btn-desktop">Back to Library</span>
+          <span className="back-btn-mobile">Back</span>
         </Link>
         <Link to="/prompts" className="detail-topbar-brand">
           Prompt Kit
         </Link>
-        <div className="detail-topbar-actions">
+        
+        {/* Desktop Topbar Actions */}
+        <div className="detail-topbar-actions desktop-only">
           <Link
             to={`/prompts/${prompt.id}`}
             className="detail-action-btn detail-action-edit"
@@ -126,6 +131,61 @@ export default function PromptDetail() {
           >
             {copied ? <><Check size={13} /> Copied</> : <><CopyIcon size={13} /> Copy Prompt</>}
           </button>
+        </div>
+
+        {/* Mobile Topbar Actions */}
+        <div className="detail-topbar-actions mobile-only">
+          <button
+            className={`detail-copy-btn ${copied ? 'copied' : ''}`}
+            onClick={handleCopy}
+          >
+            {copied ? <Check size={13} /> : <CopyIcon size={13} />}
+            <span className="mobile-btn-label">{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+          
+          <div className="mobile-dropdown-wrapper">
+            <button
+              className="detail-action-btn detail-action-more"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-haspopup="true"
+              aria-expanded={isMenuOpen}
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {isMenuOpen && (
+              <>
+                <div className="mobile-dropdown-backdrop" onClick={() => setIsMenuOpen(false)} />
+                <div className="mobile-dropdown-menu animate-in fade-in slide-in-from-top-2 duration-150">
+                  <Link
+                    to={`/prompts/${prompt.id}`}
+                    className="mobile-dropdown-item"
+                    onClick={(e) => {
+                      setIsMenuOpen(false);
+                      if (!userEmail) {
+                        e.preventDefault();
+                        setIsLoginModalOpen(true);
+                      }
+                    }}
+                  >
+                    <Pencil size={13} /> Edit Template
+                  </Link>
+                  <Link
+                    to={`/prompts/${prompt.id}/run`}
+                    className="mobile-dropdown-item"
+                    onClick={(e) => {
+                      setIsMenuOpen(false);
+                      if (!userEmail) {
+                        e.preventDefault();
+                        setIsLoginModalOpen(true);
+                      }
+                    }}
+                  >
+                    <Zap size={13} /> Test Prompt
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

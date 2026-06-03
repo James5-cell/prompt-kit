@@ -251,7 +251,7 @@ export default function PromptRunner() {
       <meta property="og:description" content="AI Prompt Evaluation and Execution Environment" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <main className={`max-w-4xl mx-auto p-6 md:p-10 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
+      <main className={`max-w-4xl mx-auto p-4 pb-16 md:p-10 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
         {!isFocusMode && (
           <RunnerHeader 
             title={prompt.title}
@@ -401,26 +401,29 @@ function RunnerSummaryBar({
       onClick={onExpand}
       className="w-full bg-[var(--surface)] border border-[var(--border)] p-4 rounded-[var(--radius-md)] hover:border-[var(--border-strong)] transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
     >
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]">
+      <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+        <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)] shrink-0">
           <Sparkles className="w-4 h-4" />
         </div>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1.5 min-w-0 w-full">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-[var(--text)]">Configuration Locked</span>
             <span className="text-[9px] px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] font-semibold border border-[var(--border)]">
               {isRunning ? 'Running...' : 'Output Ready'}
             </span>
           </div>
-          <p className="m-0 text-xs text-[var(--text-faint)] mt-0.5">
-            Engine: <strong className="text-[var(--text-muted)] font-medium">{hasAnyApiKey ? `${provider} (${model})` : 'Fallback Engine'}</strong>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs text-[var(--text-faint)]">
+            <div>
+              Engine: <strong className="text-[var(--text-muted)] font-medium">{hasAnyApiKey ? `${provider} (${model})` : 'Fallback Engine'}</strong>
+            </div>
             {testInput && (
-              <>
-                <span className="mx-2 text-[var(--border)]">|</span>
-                Input: <span className="text-[var(--text-muted)] font-medium italic truncate max-w-[200px] md:max-w-[400px] inline-block align-bottom">"{testInput}"</span>
-              </>
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="hidden sm:inline text-[var(--border)]">|</span>
+                <span className="shrink-0">Input:</span>
+                <span className="text-[var(--text-muted)] font-medium italic truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[400px]">"{testInput}"</span>
+              </div>
             )}
-          </p>
+          </div>
         </div>
       </div>
       <button 
@@ -428,7 +431,7 @@ function RunnerSummaryBar({
           e.stopPropagation();
           onExpand();
         }}
-        className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center self-start sm:self-auto"
+        className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center justify-center w-full sm:w-auto mt-2 sm:mt-0"
       >
         <Edit2 className="w-3 h-3" /> Adjust Config
       </button>
@@ -475,7 +478,8 @@ function RunnerSetupPanel({
             className="btn-ghost preview-toggle-btn"
             onClick={() => setIsTemplateCollapsed(!isTemplateCollapsed)}
           >
-            {isTemplateCollapsed ? 'Show Template ↴' : 'Hide Template ⬏'}
+            <span className="btn-label-desktop">{isTemplateCollapsed ? 'Show Template ↴' : 'Hide Template ⬏'}</span>
+            <span className="btn-label-mobile">{isTemplateCollapsed ? 'Show ↴' : 'Hide ⬏'}</span>
           </button>
         </div>
         {!isTemplateCollapsed && (
