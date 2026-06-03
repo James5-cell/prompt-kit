@@ -90,7 +90,7 @@ export default {
         result = await streamText({
           model: resolvedModel,
           prompt: prompt,
-          maxTokens: 4096,
+          maxOutputTokens: 4096,
         });
       } catch (err: any) {
         const isUserKey = !!targetApiKey;
@@ -109,7 +109,7 @@ export default {
             result = await streamText({
               model: fallbackModel,
               prompt: prompt,
-              maxTokens: 4096,
+              maxOutputTokens: 4096,
             });
             console.log(`[ai-test] Prompt execution successful on key 2 fallback.`);
           } catch (fallbackErr: any) {
