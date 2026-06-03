@@ -10,8 +10,13 @@ service cloud.firestore {
       // 任何人可讀
       allow read: if true;
 
-      // 僅管理員（Custom Claims: admin=true）可寫
-      allow create, update, delete: if isAdmin();
+      // 僅管理員（Custom Claims: admin=true）可寫入和刪除
+      allow create, delete: if isAdmin();
+      
+      // 僅管理員可做任意修改；非管理員僅限修改 usageCount、lastUsedAt 和 updatedAt 統計欄位
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usageCount', 'lastUsedAt', 'updatedAt'])
+      );
     }
 
     // Tags 集合规则
