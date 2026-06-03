@@ -288,3 +288,47 @@
     max-height: 140px;
   }
 }
+
+/* Animation Keyframes */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Local Animation Utilities */
+.animate-spin {
+  animation: spin 1s linear infinite !important;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+/* Spinner Icon Sizing Fix */
+.console-execute-btn svg.animate-spin {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: 6px !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+}
+
+/* Disabled Button UX indicator */
+button:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+

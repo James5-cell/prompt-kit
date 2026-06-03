@@ -169,12 +169,22 @@ export default function PromptRunner() {
         }
       }
 
-      const result = await executePrompt({
-        prompt: finalContent,
-        provider: hasAnyApiKey ? selectedProvider : '',
-        model: hasAnyApiKey ? selectedModelId : '',
-        apiKey: apiKey,
-      });
+      const result = await executePrompt(
+        {
+          prompt: finalContent,
+          provider: hasAnyApiKey ? selectedProvider : '',
+          model: hasAnyApiKey ? selectedModelId : '',
+          apiKey: apiKey,
+        },
+        (chunkText) => {
+          setRunResult({
+            text: chunkText,
+            latencyMs: 0,
+            providerUsed: hasAnyApiKey ? selectedProvider : 'fallback',
+            modelUsed: hasAnyApiKey ? selectedModelId : 'fallback',
+          });
+        }
+      );
       
       setRunResult(result);
 
@@ -636,7 +646,7 @@ function RunnerOutputPanel({
             <h3 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider">Model Output</h3>
             {runResult && (
               <p className="text-[10px] text-[var(--text-faint)] m-0 mt-0.5">
-                {runResult.providerUsed} ({runResult.modelUsed}) • {runResult.latencyMs}ms
+                {runResult.providerUsed} ({runResult.modelUsed}){runResult.latencyMs > 0 ? ` • ${runResult.latencyMs}ms` : ''}
               </p>
             )}
           </div>
@@ -646,7 +656,8 @@ function RunnerOutputPanel({
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}
-              className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center"
+              disabled={isRunning}
+              className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center disabled:opacity-50"
             >
               {copied ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -674,7 +685,7 @@ function RunnerOutputPanel({
       {/* Panel Body */}
       <div className="p-6 md:p-8 bg-[var(--surface)] flex-1 min-h-[220px]">
         {/* Loading State Skeleton */}
-        {isRunning && (
+        {isRunning && !runResult && (
           <div className="flex flex-col gap-4 animate-pulse w-full">
             <div className="h-4 bg-[var(--surface-2)] rounded w-1/3"></div>
             <div className="h-3 bg-[var(--surface-2)] rounded w-full"></div>
@@ -700,9 +711,9 @@ function RunnerOutputPanel({
         )}
 
         {/* Markdown Output */}
-        {runResult && !isRunning && (
+        {runResult && (
           <div className="prose prose-sm prose-invert max-w-none text-[var(--text)]">
-            <div className="space-y-4 text-sm leading-relaxed">
+            <div className="space-y-4 text-sm leading-relaxed animate-in fade-in duration-200">
               <ReactMarkdown
                 components={{
                   h1: ({node, ...props}) => <h1 className="text-base font-bold text-[var(--text)] mt-6 mb-2 border-b border-[var(--border)] pb-1" {...props} />,
@@ -733,6 +744,12 @@ function RunnerOutputPanel({
               >
                 {runResult.text}
               </ReactMarkdown>
+              {isRunning && (
+                <div className="flex items-center gap-2 text-xs text-[var(--text-faint)] mt-4 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse"></span>
+                  Generating response...
+                </div>
+              )}
             </div>
           </div>
         )}

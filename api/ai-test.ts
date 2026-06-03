@@ -1,4 +1,4 @@
-import { generateText } from 'ai';
+import { streamText } from 'ai';
 import { resolveAIModel } from './_lib/ai/providerFactory.js';
 import { FALLBACK_CONFIG } from '../src/config/aiModels.js';
 import { getPlatformConfig } from './_lib/db.js';
@@ -24,6 +24,8 @@ interface VercelResponse {
   status: (code: number) => VercelResponse;
   json: (data: unknown) => void;
   setHeader: (name: string, value: string) => void;
+  writeHead: (statusCode: number, headers?: Record<string, string>) => VercelResponse;
+  write: (chunk: string) => boolean;
   end: () => void;
 }
 
@@ -79,13 +81,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`[ai-test] Executing user prompt with model ${finalModel}...`);
     
-    let text = '';
+    let result;
     try {
-      const response = await generateText({
+      result = await streamText({
         model: resolvedModel,
         prompt: prompt,
       });
-      text = response.text;
     } catch (err: any) {
       const isUserKey = !!targetApiKey;
       const hasKey2 = !!process.env.NVIDIA_API_KEY_2;
@@ -100,11 +101,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             model: finalModel,
             apiKey: process.env.NVIDIA_API_KEY_2,
           });
-          const response = await generateText({
+          result = await streamText({
             model: fallbackModel,
             prompt: prompt,
           });
-          text = response.text;
           console.log(`[ai-test] Prompt execution successful on key 2 fallback.`);
         } catch (fallbackErr: any) {
           console.error(`[ai-test] NVIDIA API key 2 also failed:`, fallbackErr);
@@ -115,14 +115,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const latencyMs = Date.now() - start;
-    console.log(`[ai-test] Prompt execution successful, latency=${latencyMs}ms`);
-    return res.status(200).json({
-      text,
-      latencyMs,
-      providerUsed: finalProvider,
-      modelUsed: finalModel,
+    // Set up SSE response headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      ...corsHeaders
     });
+
+    const sendSSE = (data: any) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
+    };
+
+    try {
+      for await (const textPart of result.textStream) {
+        sendSSE({ text: textPart });
+      }
+
+      const latencyMs = Date.now() - start;
+      console.log(`[ai-test] Stream completed successfully, latency=${latencyMs}ms`);
+      
+      sendSSE({
+        metadata: {
+          latencyMs,
+          providerUsed: finalProvider,
+          modelUsed: finalModel,
+        }
+      });
+    } catch (streamErr: any) {
+      console.error('[ai-test] Error during streaming:', streamErr);
+      sendSSE({ error: streamErr?.message || 'Error during stream generation' });
+    } finally {
+      res.end();
+    }
+
   } catch (err: unknown) {
     console.error('[ai-test] Error caught during prompt evaluation:', err);
     // Hide API key in any error strings if it leaked
@@ -133,3 +162,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: `Server error: ${msg}` });
   }
 }
+
