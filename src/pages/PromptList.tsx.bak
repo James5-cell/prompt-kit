@@ -1,0 +1,943 @@
+import { useEffect, useState, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { 
+  Plus, 
+  Search, 
+  Tag as TagIcon, 
+  BookOpen,
+  Code2,
+  LineChart,
+  PenTool,
+  Brain,
+  Wrench,
+  Globe,
+  X,
+  Play,
+  Check,
+  Copy as CopyIcon,
+  AlertCircle,
+  Terminal,
+  ExternalLink,
+  Star,
+  Shuffle,
+  Trash2,
+  Zap
+} from 'lucide-react';
+import { type Prompt, type PromptStatus, type Run } from '../types';
+import { promptService, isPublishedStatus } from '../services/promptService';
+import { useAuth } from '../auth/AuthContext';
+import LoginModal from '../components/LoginModal';
+import ReactMarkdown from 'react-markdown';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Tag Filter core utilities
+import { aggregateTags, filterPromptsByTags } from '../utils/tagFilter';
+
+// Execution imports for Sandbox drawer
+import { executePrompt, type PromptRunResult } from '../services/aiTestClient';
+import { db } from '../storage/db';
+import { aiModelRegistry } from '../services/aiModelRegistry';
+import { generateId } from '../utils/id';
+import type { AIProvider } from '../services/aiProviders/types';
+import type { AIModelConfig } from '../config/aiModels';
+
+import './PromptList.css';
+
+// ── Category metadata: icon + label + accent color ────────────
+const CATEGORY_MAP: Record<string, { label: string; icon: any; color: string; class: string }> = {
+  dev:         { label: 'Development',  icon: Code2,     color: 'var(--color-dev)', class: 'theme-dev' },
+  writing:     { label: 'Writing',      icon: PenTool,   color: 'var(--color-writing)', class: 'theme-writing' },
+  finance:     { label: 'Finance',      icon: LineChart, color: 'var(--color-finance)', class: 'theme-finance' },
+  learning:    { label: 'Learning',     icon: BookOpen,  color: 'var(--color-learning)', class: 'theme-learning' },
+  thinking:    { label: 'Thinking',     icon: Brain,     color: 'var(--color-thinking)', class: 'theme-thinking' },
+  tools:       { label: 'Tools',        icon: Wrench,    color: 'var(--color-tools)', class: 'theme-tools' },
+  translation: { label: 'Translation',  icon: Globe,     color: 'var(--color-translation)', class: 'theme-translation' },
+};
+
+const getCategoryMeta = (cat: string) => {
+  const key = cat.toLowerCase();
+  if (CATEGORY_MAP[key]) return CATEGORY_MAP[key];
+  return { label: cat, icon: BookOpen, color: 'var(--primary)', class: 'theme-default' };
+};
+
+export default function PromptList() {
+  const { isAdmin, userEmail } = useAuth();
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTagIds, setActiveTagIds] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedAdminStatus, setSelectedAdminStatus] = useState<PromptStatus | 'all'>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isTagPopoverOpen, setIsTagPopoverOpen] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Sandbox Drawer states
+  const [selectedPromptForSandbox, setSelectedPromptForSandbox] = useState<Prompt | null>(null);
+  const [isSandboxDrawerOpen, setIsSandboxDrawerOpen] = useState<boolean>(false);
+  const [drawerTestInput, setDrawerTestInput] = useState<string>('');
+  const [drawerIsRunning, setDrawerIsRunning] = useState<boolean>(false);
+  const [drawerError, setDrawerError] = useState<string>('');
+  const [drawerResult, setDrawerResult] = useState<PromptRunResult | null>(null);
+  const [copiedResult, setCopiedResult] = useState(false);
+
+  // Sandbox Engine settings
+  const [hasAnyApiKey, setHasAnyApiKey] = useState<boolean>(false);
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>('gemini');
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const [availableModels, setAvailableModels] = useState<AIModelConfig[]>([]);
+
+  const handleClearFilters = () => {
+    setSelectedCategory(null);
+    setSelectedAdminStatus('all');
+    setSearchQuery('');
+    setActiveTagIds([]);
+    updateUrlParams({ category: null, status: 'all', search: null, tags: [] });
+  };
+
+  // Initialize state from URL params ONCE on mount
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    const statusParam = searchParams.get('status');
+    const tagsParam = searchParams.get('tags');
+    const searchParam = searchParams.get('search');
+
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    }
+    if (statusParam) {
+      setSelectedAdminStatus(statusParam as any);
+    }
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+    if (tagsParam) {
+      setActiveTagIds(tagsParam.split(',').filter(Boolean));
+    }
+  }, []);
+
+  // Check API keys and default config on mount
+  useEffect(() => {
+    const checkApiKeys = async () => {
+      try {
+        const providers: AIProvider[] = ['gemini', 'openai', 'nvidia', 'anthropic', 'groq', 'deepseek'];
+        let foundAny = false;
+        for (const p of providers) {
+          const key = await db.getSetting(`${p}ApiKey`);
+          if (key && key.trim()) {
+            foundAny = true;
+            break;
+          }
+        }
+        setHasAnyApiKey(foundAny);
+
+        const savedDefaultProvider = await db.getSetting('defaultAIProvider');
+        const savedDefaultModel = await db.getSetting('defaultAIModel');
+
+        if (savedDefaultProvider) {
+          setSelectedProvider(savedDefaultProvider as AIProvider);
+          const models = await aiModelRegistry.getModelsForProvider(savedDefaultProvider);
+          setAvailableModels(models);
+
+          if (savedDefaultModel && models.some(m => m.id === savedDefaultModel)) {
+            setSelectedModelId(savedDefaultModel);
+          } else if (models.length > 0) {
+            setSelectedModelId(models[0].id);
+          }
+        } else {
+          const models = await aiModelRegistry.getModelsForProvider('gemini');
+          setAvailableModels(models);
+          if (models.length > 0) {
+            setSelectedModelId(models[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load sandbox credentials:', err);
+      }
+    };
+    checkApiKeys();
+  }, []);
+
+  // Update models list when provider changes
+  useEffect(() => {
+    if (!selectedProvider) return;
+    aiModelRegistry.getModelsForProvider(selectedProvider).then((models) => {
+      setAvailableModels(models);
+      if (models.length > 0) {
+        if (!models.some((m) => m.id === selectedModelId)) {
+          setSelectedModelId(models[0].id);
+        }
+      } else {
+        setSelectedModelId('');
+      }
+    });
+  }, [selectedProvider, selectedModelId]);
+
+  // Click outside popover to close
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setIsTagPopoverOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Subscribe to real-time updates
+    const unsubscribe = promptService.subscribeToPrompts((updatedPrompts) => {
+      setPrompts(updatedPrompts);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    applyFiltersAndSorting();
+  }, [prompts, searchQuery, activeTagIds, selectedCategory, selectedAdminStatus, isAdmin]);
+
+  const updateUrlParams = (updates: {
+    category?: string | null;
+    status?: string | null;
+    search?: string | null;
+    tags?: string[] | null;
+  }) => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (updates.category !== undefined) {
+      if (updates.category) nextParams.set('category', updates.category);
+      else nextParams.delete('category');
+    }
+    if (updates.status !== undefined) {
+      if (updates.status && updates.status !== 'all') nextParams.set('status', updates.status);
+      else nextParams.delete('status');
+    }
+    if (updates.search !== undefined) {
+      if (updates.search) nextParams.set('search', updates.search);
+      else nextParams.delete('search');
+    }
+    if (updates.tags !== undefined) {
+      if (updates.tags && updates.tags.length > 0) nextParams.set('tags', updates.tags.join(','));
+      else nextParams.delete('tags');
+    }
+
+    setSearchParams(nextParams);
+  };
+
+  function applyFiltersAndSorting() {
+    let result = [...prompts];
+
+    // Status filter
+    if (!isAdmin) {
+      result = result.filter((p) => isPublishedStatus(p.status));
+    } else if (selectedAdminStatus !== 'all') {
+      if (selectedAdminStatus === 'draft') {
+        result = result.filter((p) => !p.status || p.status === 'draft');
+      } else if (selectedAdminStatus === 'published') {
+        result = result.filter((p) => p.status === 'published' || p.status === 'active');
+      } else {
+        result = result.filter((p) => p.status === selectedAdminStatus);
+      }
+    }
+
+    // Category filter
+    if (selectedCategory) {
+      result = result.filter((p) => p.category === selectedCategory);
+    }
+
+    // Text search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.content.toLowerCase().includes(q) ||
+          (p.tagNames ?? []).some((tag) => tag.toLowerCase().includes(q)) ||
+          (p.category ?? '').toLowerCase().includes(q)
+      );
+    }
+
+    // Tag filter using normalized OR logic from utils
+    if (activeTagIds.length > 0) {
+      result = filterPromptsByTags(result, activeTagIds);
+    }
+
+    // Sort: favorites first, then by creation time
+    result.sort((a, b) => {
+      if (a.favorite && !b.favorite) return -1;
+      if (!a.favorite && b.favorite) return 1;
+      return b.createdAt - a.createdAt;
+    });
+
+    setFilteredPrompts(result);
+  }
+
+  async function deletePrompt(id: string) {
+    if (!isAdmin) {
+      alert('Permission denied: admin login required');
+      return;
+    }
+    if (confirm('Are you sure you want to delete this prompt?')) {
+      await promptService.deletePrompt(id);
+    }
+  }
+
+
+
+  async function toggleFavorite(prompt: Prompt) {
+    const promptId = prompt.id;
+    try {
+      await promptService.toggleFavorite(promptId);
+      // If the favorited prompt is the one active in the sandbox drawer, update its favorite status
+      if (selectedPromptForSandbox && selectedPromptForSandbox.id === promptId) {
+        setSelectedPromptForSandbox((prev) => prev ? { ...prev, favorite: !prev.favorite } : null);
+      }
+    } catch (error) {
+      console.error(`[Favorite] Operation failed:`, error);
+    }
+  }
+
+  // Pick a random prompt from the current list and open in Sandbox
+  const handleRandomPrompt = () => {
+    if (filteredPrompts.length === 0) return;
+    const idx = Math.floor(Math.random() * filteredPrompts.length);
+    const p = filteredPrompts[idx];
+    handleOpenSandbox(p);
+  };
+
+  const handleOpenSandbox = (prompt: Prompt) => {
+    if (!userEmail) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    setSelectedPromptForSandbox(prompt);
+    setDrawerTestInput('');
+    setDrawerError('');
+    setDrawerResult(null);
+    setIsSandboxDrawerOpen(true);
+  };
+
+  const handleRunSandbox = async () => {
+    if (!selectedPromptForSandbox) return;
+    setDrawerIsRunning(true);
+    setDrawerError('');
+    setDrawerResult(null);
+
+    try {
+      const apiKey = (await db.getSetting(`${selectedProvider}ApiKey`)) || '';
+      
+      let finalContent = selectedPromptForSandbox.content;
+      if (drawerTestInput.trim()) {
+        if (selectedPromptForSandbox.content.includes('{{input}}')) {
+          finalContent = selectedPromptForSandbox.content.replace(/\{\{input\}\}/g, drawerTestInput);
+        } else {
+          finalContent = `${selectedPromptForSandbox.content}\n\nContext/Input:\n${drawerTestInput}`;
+        }
+      }
+
+      const result = await executePrompt(
+        {
+          prompt: finalContent,
+          provider: hasAnyApiKey ? selectedProvider : '',
+          model: hasAnyApiKey ? selectedModelId : '',
+          apiKey: apiKey,
+        },
+        (chunkText) => {
+          setDrawerResult({
+            text: chunkText,
+            latencyMs: 0,
+            providerUsed: hasAnyApiKey ? selectedProvider : 'shared-platform',
+            modelUsed: hasAnyApiKey ? selectedModelId : 'fallback',
+          });
+        }
+      );
+
+      setDrawerResult(result);
+
+      // Persist to runs history & update stats
+      const run: Run = {
+        id: generateId(),
+        promptId: selectedPromptForSandbox.id,
+        input: drawerTestInput ? { value: drawerTestInput } : {},
+        output: result.text,
+        model: result.modelUsed || selectedModelId || 'default',
+        parameters: {},
+        latency: result.latencyMs ?? 0,
+        createdAt: Date.now(),
+      };
+
+      await db.saveRun(run);
+      await promptService.incrementUsageCount(selectedPromptForSandbox.id);
+
+    } catch (err: any) {
+      console.error('Drawer run failed:', err);
+      setDrawerError(err.message || 'Execution error.');
+    } finally {
+      setDrawerIsRunning(false);
+    }
+  };
+
+  const copyDrawerResult = () => {
+    if (drawerResult) {
+      navigator.clipboard.writeText(drawerResult.text);
+      setCopiedResult(true);
+      setTimeout(() => setCopiedResult(false), 2000);
+    }
+  };
+
+  // Tag options directly aggregated from current category subsets
+  const uniqueCategories = Array.from(
+    new Set(prompts.map((p) => p.category).filter(Boolean))
+  ) as string[];
+
+  const promptsForTags = prompts.filter((p) => {
+    if (!isAdmin && !isPublishedStatus(p.status)) return false;
+    if (isAdmin && selectedAdminStatus !== 'all') {
+      if (selectedAdminStatus === 'draft' && p.status && p.status !== 'draft') return false;
+      if (selectedAdminStatus === 'published' && p.status !== 'published' && p.status !== 'active') return false;
+      if (selectedAdminStatus === 'private' && p.status !== 'private') return false;
+    }
+    if (selectedCategory && p.category !== selectedCategory) return false;
+    return true;
+  });
+
+  // Call the unit-tested tag aggregation function
+  const aggregatedTagOptions = aggregateTags(promptsForTags);
+
+  const filteredPopoverTags = aggregatedTagOptions.filter((tag) =>
+    tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
+  );
+
+  const isFilterActive = selectedCategory || selectedAdminStatus !== 'all' || searchQuery || activeTagIds.length > 0;
+
+  return (
+    <div className="prompt-explorer-page animate-fade-in font-sans">
+      {/* ── A. Explore Header ───────────────────────────────────── */}
+      <header className="explorer-header border-b border-[var(--border)] pb-8 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-[var(--text-faint)] mb-1.5 font-mono">
+              <Terminal size={12} className="text-primary" />
+              <span>Prompt Vault Console</span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--text)] font-display">
+              Prompt Explorer
+            </h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1.5 font-sans">
+              Search, filter, test, and extract pre-engineered templates
+            </p>
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button
+              onClick={handleRandomPrompt}
+              className="btn-secondary flex items-center justify-center gap-1.5 text-xs py-2 px-3 font-mono flex-1 md:flex-initial"
+              disabled={filteredPrompts.length === 0}
+              title="Pick a random prompt from active list"
+            >
+              <Shuffle size={13} /> Random
+            </button>
+            {isAdmin && (
+              <Link to="/prompts/new" className="btn-primary flex items-center justify-center gap-1.5 text-xs py-2 px-3 flex-1 md:flex-initial">
+                <Plus size={13} /> New Prompt
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* ── B. Filters Workspace Panel ──────────────────────────── */}
+      <section className="filter-workspace mb-8 card-base p-5">
+        <div className="flex flex-col gap-5">
+          {/* Top filter row: Search and dropdowns */}
+          <div className="filter-grid">
+            <div className="search-box-wrapper flex-1">
+              <Search size={15} className="search-box-icon text-[var(--text-faint)]" />
+              <input
+                type="text"
+                placeholder="Search templates, tags, summaries..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  updateUrlParams({ search: e.target.value });
+                }}
+                className="search-box-input font-mono text-xs"
+              />
+            </div>
+
+            {isAdmin && (
+              <select
+                className="admin-status-dropdown text-xs font-mono"
+                value={selectedAdminStatus}
+                onChange={(e) => {
+                  setSelectedAdminStatus(e.target.value as any);
+                  updateUrlParams({ status: e.target.value });
+                }}
+              >
+                <option value="all">All Status</option>
+                <option value="published">🌐 Published</option>
+                <option value="draft">📝 Drafts</option>
+                <option value="private">🔒 Private</option>
+              </select>
+            )}
+
+            {/* Tag Selection Popover wrapper */}
+            <div className="tag-popover-container relative" ref={popoverRef}>
+              <button
+                type="button"
+                className="btn-secondary tag-popover-trigger w-full flex items-center justify-between text-xs font-mono"
+                onClick={() => setIsTagPopoverOpen(!isTagPopoverOpen)}
+              >
+                <span className="flex items-center gap-1.5"><TagIcon size={12} /> Tags</span>
+                <span className="popover-count-badge">({activeTagIds.length})</span>
+              </button>
+
+              <AnimatePresence>
+                {isTagPopoverOpen && (
+                  <motion.div
+                    className="tag-popover-dropdown"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <div className="tag-popover-search">
+                      <input
+                        type="text"
+                        placeholder="Search tags..."
+                        value={tagSearchQuery}
+                        onChange={(e) => setTagSearchQuery(e.target.value)}
+                        className="tag-popover-search-input font-mono"
+                      />
+                    </div>
+                    <div className="tag-popover-list">
+                      {filteredPopoverTags.map((tag) => {
+                        const isSelected = activeTagIds.includes(tag.id);
+                        return (
+                          <label key={tag.id} className="tag-popover-item">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                const next = activeTagIds.includes(tag.id)
+                                  ? activeTagIds.filter(id => id !== tag.id)
+                                  : [...activeTagIds, tag.id];
+                                setActiveTagIds(next);
+                                updateUrlParams({ tags: next });
+                              }}
+                            />
+                            <span className="tag-popover-item-name">{tag.name}</span>
+                            {tag.promptCount > 0 && (
+                              <span className="tag-popover-item-count">({tag.promptCount})</span>
+                            )}
+                          </label>
+                        );
+                      })}
+                      {filteredPopoverTags.length === 0 && (
+                        <div className="tag-popover-empty">No tags found</div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Categories Segmented Control Row */}
+          {uniqueCategories.length > 0 && (
+            <div className="category-segmented-bar">
+              <button
+                className={`segmented-tab ${!selectedCategory ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedCategory(null);
+                  updateUrlParams({ category: null });
+                }}
+              >
+                All Categories
+              </button>
+              {uniqueCategories.sort().map((cat) => {
+                const meta = getCategoryMeta(cat);
+                const isActive = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    className={`segmented-tab ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      updateUrlParams({ category: cat });
+                    }}
+                  >
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Active Chips & Results Count */}
+          <div className="filter-meta-row flex justify-between items-center border-t border-[rgba(255,255,255,0.03)] pt-4 mt-1 font-mono text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[var(--text-faint)]">{filteredPrompts.length} results found</span>
+              {activeTagIds.length > 0 && (
+                <div className="active-tag-chips flex items-center gap-1.5 flex-wrap ml-2">
+                  {activeTagIds.map((tagId) => (
+                    <span key={tagId} className="active-tag-chip">
+                      {tagId}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = activeTagIds.filter((id) => id !== tagId);
+                          setActiveTagIds(next);
+                          updateUrlParams({ tags: next });
+                        }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {isFilterActive && (
+              <button
+                onClick={handleClearFilters}
+                className="clear-all-filters-btn flex items-center gap-1 text-[var(--text-faint)] hover:text-primary"
+              >
+                <X size={12} /> Clear all filters
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── C. Responsive Prompt Grid (1/2/3 Columns) ───────────── */}
+      <section className="prompts-grid-explorer">
+        {filteredPrompts.length > 0 ? (
+          <div className="explorer-grid">
+            {filteredPrompts.map((prompt) => {
+              const categoryMeta = prompt.category ? getCategoryMeta(prompt.category) : null;
+              const CatIcon = categoryMeta ? categoryMeta.icon : null;
+
+              return (
+                <article
+                  key={prompt.id}
+                  className="prompt-explorer-card"
+                  style={categoryMeta ? { '--card-glow-color': `${categoryMeta.color}15` } as React.CSSProperties : undefined}
+                >
+                  <div className="card-top flex justify-between items-start gap-3">
+                    {categoryMeta && (
+                      <span className={`explorer-cat-badge ${categoryMeta.class}`} style={{ color: categoryMeta.color, borderColor: `${categoryMeta.color}25` }}>
+                        {CatIcon && <CatIcon size={10} />}
+                        {categoryMeta.label}
+                      </span>
+                    )}
+
+                    <div className="flex gap-1.5 items-center">
+                      <button
+                        className={`fav-star-btn ${prompt.favorite ? 'favorited' : ''}`}
+                        onClick={() => {
+                          if (!userEmail) {
+                            setIsLoginModalOpen(true);
+                          } else {
+                            toggleFavorite(prompt);
+                          }
+                        }}
+                        title={prompt.favorite ? 'Remove Favorite' : 'Save Favorite'}
+                      >
+                        <Star size={13} fill={prompt.favorite ? 'var(--warning)' : 'none'} />
+                      </button>
+                      
+                      {isAdmin && (
+                        <button
+                          className="delete-card-btn text-[var(--text-faint)] hover:text-[var(--danger)]"
+                          onClick={() => deletePrompt(prompt.id)}
+                          title="Delete prompt"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <h3 className="explorer-card-title font-display mt-3">
+                    <Link to={isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`} className="hover:text-primary transition-colors">
+                      {prompt.title}
+                    </Link>
+                  </h3>
+
+                  <p className="explorer-card-summary text-xs text-[var(--text-muted)] line-clamp-2 mt-2">
+                    {prompt.summary || (prompt.content.length > 90 ? `${prompt.content.substring(0, 90)}...` : prompt.content)}
+                  </p>
+
+                  {/* Limit to max 3 tags */}
+                  {prompt.tagNames && prompt.tagNames.length > 0 && (
+                    <div className="explorer-card-tags flex flex-wrap gap-1.5 mt-3">
+                      {prompt.tagNames.slice(0, 3).map((tag, idx) => (
+                        <span key={idx} className="explorer-tag-pill font-mono text-[9px]">
+                          #{tag}
+                        </span>
+                      ))}
+                      {prompt.tagNames.length > 3 && (
+                        <span className="explorer-tag-pill-more font-mono text-[9px] text-[var(--text-faint)]">
+                          +{prompt.tagNames.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="explorer-card-footer flex justify-between items-center border-t border-[rgba(255,255,255,0.03)] pt-3 mt-4 text-[10px] font-mono text-[var(--text-faint)]">
+                    <span>Used {prompt.usageCount || 0} times</span>
+                    
+                    <button
+                      onClick={() => handleOpenSandbox(prompt)}
+                      className="try-sandbox-btn btn-primary flex items-center gap-1 py-1 px-2.5 text-[10px] uppercase font-bold tracking-wider"
+                    >
+                      <Zap size={10} className="fill-current" /> Try Sandbox
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="explorer-empty card-base font-mono py-16 text-center border-dashed">
+            <AlertCircle size={28} className="mx-auto text-[var(--text-faint)] mb-3" />
+            <p className="text-sm">Vault Search Failed: No Matching Capsules Found</p>
+            <button
+              onClick={handleClearFilters}
+              className="btn-secondary text-xs mt-4 py-1.5 px-3"
+            >
+              Reset Filters
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* ── D. Interactive Sandbox Drawer Panel ─────────────────── */}
+      <AnimatePresence>
+        {isSandboxDrawerOpen && selectedPromptForSandbox && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              className="sandbox-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSandboxDrawerOpen(false)}
+            />
+
+            {/* Slide over drawer */}
+            <motion.div
+              className="sandbox-drawer-panel border-l border-[var(--border)]"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+            >
+              {/* Drawer Header */}
+              <div className="drawer-header flex justify-between items-center p-5 border-b border-[var(--border)]">
+                <div className="flex items-center gap-2">
+                  <Terminal size={14} className="text-primary animate-pulse" />
+                  <span className="text-xs font-bold font-mono uppercase tracking-wider text-[var(--text)]">Sandbox Compiler</span>
+                </div>
+                <button
+                  onClick={() => setIsSandboxDrawerOpen(false)}
+                  className="text-[var(--text-faint)] hover:text-primary transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Drawer Content Body */}
+              <div className="drawer-body p-6 flex flex-col gap-6 overflow-y-auto">
+                <div>
+                  <h2 className="drawer-title font-display text-lg font-bold text-[var(--text)]">
+                    {selectedPromptForSandbox.title}
+                  </h2>
+                  {selectedPromptForSandbox.summary && (
+                    <p className="drawer-desc text-xs text-[var(--text-muted)] mt-1">
+                      {selectedPromptForSandbox.summary}
+                    </p>
+                  )}
+                </div>
+
+                {/* API Provider / Model Selection (If custom credentials exist) */}
+                {hasAnyApiKey ? (
+                  <div className="drawer-engine-row flex gap-3 font-mono text-[10px]">
+                    <div className="engine-group flex-1 flex flex-col gap-1.5">
+                      <label className="text-[var(--text-faint)] uppercase font-bold tracking-wider">Provider</label>
+                      <select
+                        className="input-base p-2 text-xs"
+                        value={selectedProvider}
+                        onChange={(e) => setSelectedProvider(e.target.value as AIProvider)}
+                      >
+                        <option value="gemini">Gemini</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="nvidia">NVIDIA NIM</option>
+                        <option value="groq">Groq</option>
+                        <option value="deepseek">DeepSeek</option>
+                      </select>
+                    </div>
+                    <div className="engine-group flex-1 flex flex-col gap-1.5">
+                      <label className="text-[var(--text-faint)] uppercase font-bold tracking-wider">Model</label>
+                      <select
+                        className="input-base p-2 text-xs"
+                        value={selectedModelId}
+                        onChange={(e) => setSelectedModelId(e.target.value)}
+                        disabled={availableModels.length === 0}
+                      >
+                        {availableModels.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="drawer-notice text-[10px] font-mono leading-normal p-3 rounded border border-blue-500/10 bg-blue-500/5 text-[var(--text-muted)]">
+                    ℹ️ Running on shared developer keys. Connect your own API endpoints in{' '}
+                    <a href="/settings" className="text-primary hover:underline">Settings</a>.
+                  </div>
+                )}
+
+                {/* Textarea variables payload input */}
+                <div className="drawer-input-section font-mono flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <label className="text-[var(--text-faint)] uppercase font-bold tracking-wider">Payload Variables / Input</label>
+                    <span className="text-[var(--text-faint)]">
+                      {selectedPromptForSandbox.content.includes('{{input}}') ? '{{input}} active' : 'auto-append'}
+                    </span>
+                  </div>
+                  <textarea
+                    placeholder={
+                      selectedPromptForSandbox.content.includes('{{input}}')
+                        ? 'Type content to replace {{input}} placeholder...'
+                        : 'Type variables or content payload to execute...'
+                    }
+                    value={drawerTestInput}
+                    onChange={(e) => setDrawerTestInput(e.target.value)}
+                    className="drawer-textarea font-mono text-xs p-3 min-h-[100px] border border-[var(--border)] rounded bg-[#050508] text-[var(--text)] outline-none focus:border-primary"
+                    disabled={drawerIsRunning}
+                  />
+                </div>
+
+                <button
+                  onClick={handleRunSandbox}
+                  className={`btn-primary btn-glow py-2.5 text-xs font-mono uppercase font-bold tracking-wider w-full flex items-center justify-center gap-1.5 ${drawerIsRunning ? 'pulse-loading' : ''}`}
+                  disabled={drawerIsRunning}
+                >
+                  {drawerIsRunning ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+                      <span>COMPILING EXECUTION...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={12} className="fill-current" />
+                      <span>Execute Prompt</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Output Console Log Area */}
+                {(drawerIsRunning || drawerResult || drawerError) && (
+                  <div className="drawer-output-section flex-1 flex flex-col gap-2 min-h-[220px]">
+                    <div className="flex justify-between items-center text-[10px] font-mono">
+                      <span className="text-[var(--text-faint)] uppercase font-bold tracking-wider flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> Terminal Stream
+                      </span>
+                      {drawerResult && !drawerIsRunning && (
+                        <button
+                          onClick={copyDrawerResult}
+                          className="text-[var(--text-faint)] hover:text-primary flex items-center gap-1"
+                        >
+                          {copiedResult ? <Check size={11} className="text-success" /> : <CopyIcon size={11} />}
+                          <span>{copiedResult ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="drawer-output-console bg-[#050508] border border-[var(--border)] rounded p-4 font-mono text-xs flex-1 overflow-y-auto relative">
+                      <div className="terminal-scan-line"></div>
+                      
+                      {drawerIsRunning && !drawerResult && (
+                        <div className="flex flex-col gap-2 animate-pulse text-[var(--primary)] opacity-70">
+                          <div>&gt; CONNECTING SECURE TUNNEL PROTOCOL...</div>
+                          <div>&gt; SYNCING API CONSOLE PARAMETERS...</div>
+                        </div>
+                      )}
+
+                      {drawerError && (
+                        <div className="text-[var(--danger)]">
+                          <div className="font-bold flex items-center gap-1.5"><AlertCircle size={13} /> Execution Error</div>
+                          <pre className="text-[11px] leading-relaxed mt-2 whitespace-pre-wrap">{drawerError}</pre>
+                        </div>
+                      )}
+
+                      {drawerResult && (
+                        <div className="prose prose-sm prose-invert leading-relaxed max-w-none text-[var(--text-muted)]">
+                          <ReactMarkdown
+                            components={{
+                              h1: ({node, ...props}) => <h1 className="text-xs font-bold text-[var(--primary)] mt-3 mb-1" {...props} />,
+                              h2: ({node, ...props}) => <h2 className="text-xs font-semibold text-[var(--primary)] mt-3 mb-1" {...props} />,
+                              p: ({node, ...props}) => <p className="mb-2 text-[var(--text-muted)]" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-0.5 text-[var(--text-muted)]" {...props} />,
+                              li: ({node, ...props}) => <li className="text-[var(--text-muted)]" {...props} />,
+                            }}
+                          >
+                            {drawerResult.text}
+                          </ReactMarkdown>
+                          {drawerIsRunning && (
+                            <div className="flex items-center gap-1 text-[var(--primary)] text-[10px] mt-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse"></span>
+                              <span>&gt; STREAMING ACTIVE...</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Drawer Footer Actions */}
+              <div className="drawer-footer p-4 border-t border-[var(--border)] bg-[var(--surface)] flex justify-between items-center gap-3 font-mono text-xs">
+                <button
+                  onClick={() => toggleFavorite(selectedPromptForSandbox)}
+                  className="btn-ghost flex items-center gap-1.5 text-[var(--text-faint)] hover:text-primary"
+                >
+                  <Star size={13} fill={selectedPromptForSandbox.favorite ? 'var(--warning)' : 'none'} style={selectedPromptForSandbox.favorite ? { color: 'var(--warning)' } : undefined} />
+                  <span>{selectedPromptForSandbox.favorite ? 'Remove Favorite' : 'Save Favorite'}</span>
+                </button>
+                <Link
+                  to={`/prompts/${selectedPromptForSandbox.id}/run`}
+                  className="text-primary hover:underline flex items-center gap-1 text-xs"
+                >
+                  <span>Open Full Sandbox</span>
+                  <ExternalLink size={12} />
+                </Link>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        title="Sign in to continue"
+        description="Please sign in to test or favorite prompts."
+      />
+    </div>
+  );
+}

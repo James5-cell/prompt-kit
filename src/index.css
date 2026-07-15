@@ -1,57 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 * {
   box-sizing: border-box;
 }
 
 :root {
-  /* Design Tokens - Colors */
-  --bg: #07090e;                         /* 深墨蓝黑，不用纯黑 */
-  --surface: #0e121a;                    /* 主卡片背景 */
-  --surface-2: #141b27;                  /* 次层背景 / hover 背景 */
-  --border: rgba(255, 255, 255, 0.05);   /* 半透明浅边框 */
-  --border-strong: rgba(255, 255, 255, 0.12); /* hover/focus/active 边框 */
-  --text: #f1f5f9;                       /* 主文字 */
-  --text-muted: #94a3b8;                 /* 次文字 */
-  --text-faint: #475569;                 /* 辅助文字 */
+  /* Obsidian Warp/Raycast Style Colors */
+  --bg: #050508;                         /* 真暗黑底色，营造无边框一体感 */
+  --surface: #0c0e14;                    /* 主面板/卡片背景，深炭灰色 */
+  --surface-hover: #131722;              /* Hover 卡片背景 */
+  --surface-2: #161b26;                  /* 输入框等次级背景 */
+  --border: rgba(255, 255, 255, 0.05);   /* 超薄半透明边框 */
+  --border-strong: rgba(255, 255, 255, 0.12); /* 悬浮/聚焦边框 */
   
-  --primary: #3b82f6;                    /* 唯一品牌主色，冷静克制的蓝色 */
-  --primary-hover: #2563eb;
-  --primary-muted: rgba(59, 130, 246, 0.08);
+  --text: #f8fafc;                       /* 纯白主字 */
+  --text-muted: #94a3b8;                 /* 钛灰次级字 */
+  --text-faint: #475569;                 /* 虚化辅助字 */
+  
+  --primary: #00e5ff;                    /* 极光青，品牌主强调色 */
+  --primary-hover: #00b8d4;
+  --primary-muted: rgba(0, 229, 255, 0.08);
 
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --success: #00ff87;                    /* 荧光绿 */
+  --warning: #ffb300;                    /* 琥珀黄 */
+  --danger: #ff453a;                     /* 警示红 */
+
+  /* Category Specific Themes & Gradients */
+  --color-dev: #00f2fe;
+  --color-dev-bg: rgba(0, 242, 254, 0.08);
+  --color-dev-glow: rgba(0, 242, 254, 0.15);
+
+  --color-finance: #00ff87;
+  --color-finance-bg: rgba(0, 255, 135, 0.08);
+  --color-finance-glow: rgba(0, 255, 135, 0.15);
+
+  --color-writing: #ff7b00;
+  --color-writing-bg: rgba(255, 123, 0, 0.08);
+  --color-writing-glow: rgba(255, 123, 0, 0.15);
+
+  --color-thinking: #bf5af2;
+  --color-thinking-bg: rgba(191, 90, 242, 0.08);
+  --color-thinking-glow: rgba(191, 90, 242, 0.15);
+
+  --color-learning: #6366f1;
+  --color-learning-bg: rgba(99, 102, 241, 0.08);
+  --color-learning-glow: rgba(99, 102, 241, 0.15);
+
+  --color-tools: #06b6d4;
+  --color-tools-bg: rgba(6, 182, 212, 0.08);
+  --color-tools-glow: rgba(6, 182, 212, 0.15);
+
+  --color-translation: #ff2a85;
+  --color-translation-bg: rgba(255, 42, 133, 0.08);
+  --color-translation-glow: rgba(255, 42, 133, 0.15);
 
   /* Fonts */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Outfit', 'Inter', -apple-system, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Design Tokens - Radius (10 / 12 / 16) */
-  --radius-sm: 10px;
+  /* Radius (Terminal Style - Small & Clean) */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
 
-  /* Design Tokens - Spacing (4 / 8 / 12 / 16 / 24 / 32) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-
-  /* Backwards Compatibility Mapping */
-  --bg-app: var(--bg);
-  --bg-surface: var(--surface);
-  --bg-surface-2: var(--surface-2);
-  --border-subtle: var(--border);
-  --border-strong: var(--border-strong);
-  --text-primary: var(--text);
-  --text-muted: var(--text-muted);
-  --text-subtle: var(--text-faint);
-  --accent: var(--primary);
-  --accent-hover: var(--primary-hover);
-  --accent-muted: var(--primary-muted);
+  /* Glow Filters */
+  --glow-primary: 0 0 20px rgba(0, 229, 255, 0.15);
+  --glow-success: 0 0 20px rgba(0, 255, 135, 0.15);
 
   font-family: var(--font-sans);
   line-height: 1.5;
@@ -73,6 +89,7 @@ body {
   min-height: 100vh;
   background-color: var(--bg);
   color: var(--text);
+  overflow-x: hidden;
 }
 
 #root {
@@ -80,38 +97,61 @@ body {
   height: 100vh;
 }
 
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 a {
   color: var(--primary);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 a:hover {
-  color: #60a5fa;
+  color: #80f0ff;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
 }
 
 button {
   font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 input, textarea, select {
   font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Design System Utility Classes */
+/* Glassmorphism Panel styles */
 .card-base {
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-base:hover {
   border-color: var(--border-strong);
-  background-color: rgba(255, 255, 255, 0.01);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 255, 255, 0.02);
 }
 
-/* Global button styles */
+/* Premium Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -122,14 +162,20 @@ input, textarea, select {
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 600;
-  border: none;
+  border: 1px solid var(--text);
   cursor: pointer;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
 }
 
 .btn-primary:hover {
-  opacity: 0.95;
-  background-color: #ffffff;
+  background-color: transparent;
+  color: var(--text);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-secondary {
@@ -137,42 +183,42 @@ input, textarea, select {
   align-items: center;
   justify-content: center;
   padding: 8px 16px;
-  background-color: transparent;
-  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-secondary:hover {
-  background-color: var(--surface-2);
+  background-color: var(--surface-hover);
   border-color: var(--border-strong);
-}
-
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  background-color: transparent;
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.btn-ghost:hover {
-  background-color: var(--surface-2);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
-/* Global inputs style */
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* Glow Accent Button (E.g. Test Prompt) */
+.btn-glow {
+  background: var(--primary-muted);
+  color: var(--primary);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  box-shadow: var(--glow-primary);
+}
+.btn-glow:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--primary);
+  color: #fff;
+  text-shadow: 0 0 8px var(--primary);
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);
+}
+
+/* Inputs and Forms */
 .input-base {
   background-color: var(--surface-2);
   border: 1px solid var(--border);
@@ -181,19 +227,61 @@ input, textarea, select {
   font-size: 13px;
   padding: 8px 12px;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input-base:focus {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.15);
 }
 
-/* Section Header standard label */
-.section-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 8px;
+/* Micro-animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes borderGlow {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: rgba(0, 229, 255, 0.3); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.glitch-text {
+  position: relative;
+  color: var(--text);
+}
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 1px;
+  text-shadow: -1px 0 var(--primary);
+  top: 0;
+  color: var(--text);
+  overflow: hidden;
+  clip: rect(0, 900px, 0, 0); 
+  animation: noise 3s infinite linear alternate-reverse;
+}
+
+@keyframes noise {
+  0% { clip: rect(10px, 9999px, 66px, 0); }
+  10% { clip: rect(34px, 9999px, 55px, 0); }
+  20% { clip: rect(85px, 9999px, 5px, 0); }
+  30% { clip: rect(12px, 9999px, 73px, 0); }
+  40% { clip: rect(66px, 9999px, 18px, 0); }
+  50% { clip: rect(92px, 9999px, 92px, 0); }
+  60% { clip: rect(2px, 9999px, 44px, 0); }
+  70% { clip: rect(54px, 9999px, 81px, 0); }
+  80% { clip: rect(78px, 9999px, 12px, 0); }
+  90% { clip: rect(22px, 9999px, 67px, 0); }
+  100% { clip: rect(89px, 9999px, 3px, 0); }
 }
