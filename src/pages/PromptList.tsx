@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Eye, 
@@ -54,7 +54,6 @@ export default function PromptList() {
   const { isAdmin, userEmail } = useAuth();
 
   const [prompts, setPrompts]               = useState<Prompt[]>([]);
-  const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
   const [searchQuery, setSearchQuery]       = useState('');
   const [allTags, setAllTags]               = useState<Tag[]>([]);       // for color metadata only
   const [selectedAdminStatus, setSelectedAdminStatus] = useState<PromptStatus | 'all'>('all');
@@ -116,14 +115,9 @@ export default function PromptList() {
     };
   }, []);
 
-  // ── Re-filter whenever dependencies change ─────────────────
-  useEffect(() => {
-    applyFilters();
-  }, [prompts, searchQuery, activeTagNames, selectedCategory, selectedAdminStatus, isAdmin]);
-
-  // ── Core filter logic ──────────────────────────────────────
-  function applyFilters() {
-    let result = [...prompts];
+  // ── Filtered prompts (derived via useMemo — always up-to-date) ─
+  const filteredPrompts = useMemo(() => {
+    let result = [...(prompts ?? [])];
 
     // Visibility: non-admins only see published prompts
     if (!isAdmin) {
@@ -138,9 +132,10 @@ export default function PromptList() {
       }
     }
 
-    // Category filter
+    // Category filter — case-insensitive
     if (selectedCategory) {
-      result = result.filter(p => p.category === selectedCategory);
+      const catLower = selectedCategory.toLowerCase();
+      result = result.filter(p => (p.category ?? '').toLowerCase() === catLower);
     }
 
     // Text search (title, content, tags, category)
@@ -154,14 +149,12 @@ export default function PromptList() {
       );
     }
 
-    // Tag filter — OR logic, matched by name (case/trim normalised)
-    // Also falls back to tagId matching if allTags data is available
+    // Tag filter — OR logic, case-insensitive
     if (activeTagNames.length > 0) {
       result = result.filter(p => {
         const promptTagNorm = (p.tagNames || []).map(t => t.trim().toLowerCase());
         const nameMatch = activeTagNames.some(tn => promptTagNorm.includes(tn.toLowerCase()));
         if (nameMatch) return true;
-        // Fallback: ID-based match (in case tagNames differ from allTags names)
         const idMatch = activeTagNames.some(tn => {
           const tagObj = allTags.find(t => t.name.trim().toLowerCase() === tn.toLowerCase());
           return tagObj && (p.tagIds || []).includes(tagObj.id);
@@ -177,8 +170,8 @@ export default function PromptList() {
       return b.createdAt - a.createdAt;
     });
 
-    setFilteredPrompts(result);
-  }
+    return result;
+  }, [prompts, searchQuery, activeTagNames, selectedCategory, selectedAdminStatus, isAdmin, allTags]);
 
   // ── Actions ────────────────────────────────────────────────
   async function deletePrompt(id: string) {
@@ -250,7 +243,7 @@ export default function PromptList() {
       if (selectedAdminStatus === 'published' && p.status !== 'published' && p.status !== 'active') return false;
       if (selectedAdminStatus === 'private'   && p.status !== 'private')   return false;
     }
-    if (selectedCategory && p.category !== selectedCategory) return false;
+    if (selectedCategory && (p.category ?? '').toLowerCase() !== selectedCategory.toLowerCase()) return false;
     return true;
   });
 
