@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Eye, 
@@ -57,14 +57,39 @@ export default function PromptList() {
   const [filteredPrompts, setFilteredPrompts] = useState<Prompt[]>([]);
   const [searchQuery, setSearchQuery]       = useState('');
   const [allTags, setAllTags]               = useState<Tag[]>([]);       // for color metadata only
-  const [activeTagNames, setActiveTagNames] = useState<string[]>([]);   // selected tag names (normalised)
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedAdminStatus, setSelectedAdminStatus] = useState<PromptStatus | 'all'>('all');
   const [searchParams, setSearchParams]     = useSearchParams();
 
+  const selectedCategory = searchParams.get('category');
+  const activeTagNames = useMemo(() => {
+    const param = searchParams.get('tags');
+    return param ? param.split(',').map(t => t.trim()).filter(Boolean) : [];
+  }, [searchParams]);
+
+  const updateFilters = (newCat: string | null, newTags: string[]) => {
+    const next = new URLSearchParams(searchParams);
+    if (newCat) {
+      next.set('category', newCat);
+    } else {
+      next.delete('category');
+    }
+    if (newTags.length > 0) {
+      next.set('tags', newTags.join(','));
+    } else {
+      next.delete('tags');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  const toggleTagName = (tagName: string) => {
+    const nextTags = activeTagNames.includes(tagName)
+      ? activeTagNames.filter(n => n !== tagName)
+      : [...activeTagNames, tagName];
+    updateFilters(selectedCategory, nextTags);
+  };
+
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showAllTags, setShowAllTags]       = useState(false);
-  const hasMounted = useRef(false);
 
   // UI micro-state
   const [copiedId, setCopiedId]     = useState<string | null>(null);
@@ -75,29 +100,6 @@ export default function PromptList() {
   const RANDOM_MIN_POOL   = 5;
   const [randomPick, setRandomPick]   = useState<Prompt | null>(null);
   const [randomQueue, setRandomQueue] = useState<string[]>([]); // FIFO of recently-seen IDs
-
-  // ── Initialise from URL params (once on mount) ─────────────
-  useEffect(() => {
-    const cat      = searchParams.get('category');
-    const tagsParam = searchParams.get('tags');
-    if (cat) setSelectedCategory(cat);
-    if (tagsParam) {
-      const names = tagsParam.split(',').map(t => t.trim()).filter(Boolean);
-      if (names.length) setActiveTagNames(names);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Sync active tag selection → URL (skip first render) ────
-  useEffect(() => {
-    if (!hasMounted.current) { hasMounted.current = true; return; }
-    const next = new URLSearchParams(searchParams);
-    if (activeTagNames.length > 0) {
-      next.set('tags', activeTagNames.join(','));
-    } else {
-      next.delete('tags');
-    }
-    setSearchParams(next, { replace: true });
-  }, [activeTagNames]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Real-time subscriptions ───────────────────────────────
   useEffect(() => {
@@ -352,7 +354,7 @@ export default function PromptList() {
               <div className="category-cards-grid">
                 <button
                   className={`category-card-btn ${!selectedCategory ? 'active' : ''}`}
-                  onClick={() => { setSelectedCategory(null); setActiveTagNames([]); }}
+                  onClick={() => updateFilters(null, [])}
                 >
                   <span className="cat-btn-icon"><BookOpen size={14} /></span>
                   <span className="cat-btn-label">All Prompts</span>
@@ -365,7 +367,7 @@ export default function PromptList() {
                     <button
                       key={cat}
                       className={`category-card-btn ${meta.class} ${isActive ? 'active' : ''}`}
-                      onClick={() => { setSelectedCategory(cat); setActiveTagNames([]); }}
+                      onClick={() => updateFilters(cat, [])}
                       style={isActive ? { borderColor: meta.color, boxShadow: `0 0 10px ${meta.color}20` } : undefined}
                     >
                       <span className="cat-btn-icon" style={{ color: meta.color }}>
@@ -387,7 +389,7 @@ export default function PromptList() {
                 {activeTagNames.length > 0 && (
                   <button
                     className="tag-clear-inline"
-                    onClick={() => setActiveTagNames([])}
+                    onClick={() => updateFilters(selectedCategory, [])}
                   >
                     ✕ Clear
                   </button>
@@ -405,13 +407,7 @@ export default function PromptList() {
                         ? { borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}15` }
                         : undefined
                       }
-                      onClick={() => {
-                        setActiveTagNames(prev =>
-                          prev.includes(tag.name)
-                            ? prev.filter(n => n !== tag.name)
-                            : [...prev, tag.name]
-                        );
-                      }}
+                      onClick={() => toggleTagName(tag.name)}
                     >
                       {isSelected && <Check size={10} style={{ marginRight: '3px', flexShrink: 0 }} />}
                       {tag.name}
@@ -612,7 +608,7 @@ export default function PromptList() {
                 <p>No matching prompts found</p>
                 <button
                   className="btn-secondary"
-                  onClick={() => { setSearchQuery(''); setActiveTagNames([]); }}
+                  onClick={() => { setSearchQuery(''); updateFilters(selectedCategory, []); }}
                 >
                   Clear Filters
                 </button>
