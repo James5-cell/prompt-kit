@@ -432,8 +432,8 @@ export default function PromptList() {
         </div>
       )}
 
-      {/* ── Row 4: Grid of Collapsible Cards ──────────────────── */}
-      <div className="prompts-grid">
+      {/* ── Row 4: Grid of Collapsible Cards ───────────────────── */}
+      <div className="prompts-grid" key={selectedCategory ?? 'all'}>
         {filteredPrompts.length > 0 ? (
           filteredPrompts.map(prompt => {
             const isExpanded   = !!expandedIds[prompt.id];
@@ -443,7 +443,6 @@ export default function PromptList() {
             return (
               <motion.div
                 key={prompt.id}
-                layout="position"
                 className={`prompt-card-v2 ${isExpanded ? 'is-expanded' : ''}`}
                 style={isExpanded && categoryMeta ? { borderColor: categoryMeta.color } : undefined}
               >
