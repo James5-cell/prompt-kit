@@ -18,6 +18,8 @@
     "@ai-sdk/anthropic": "^3.0.75",
     "@ai-sdk/google": "^3.0.67",
     "@ai-sdk/openai": "^3.0.61",
+    "@iconify-json/ri": "^1.2.10",
+    "@iconify/react": "^6.0.2",
     "ai": "^6.0.175",
     "autoprefixer": "^10.5.0",
     "dexie": "^4.2.1",

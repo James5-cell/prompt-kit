@@ -60,9 +60,19 @@
   transition: all 0.2s;
 }
 
+.detail-back-btn .back-icon {
+  display: inline-flex;
+  align-items: center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .detail-back-btn:hover {
   color: #a1a1aa;
   background: rgba(255, 255, 255, 0.05);
+}
+
+.detail-back-btn:hover .back-icon {
+  transform: translateX(-3px);
 }
 
 .detail-topbar-actions {
@@ -82,6 +92,51 @@
   text-decoration: none;
   transition: all 0.2s;
 }
+
+/* ── Dual-state icon (line → fill on hover) ─────────────── */
+.btn-dual-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 1em;
+  height: 1em;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-dual-icon .icon-line,
+.btn-dual-icon .icon-fill {
+  transition: opacity 0.15s ease;
+}
+
+.btn-dual-icon .icon-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+}
+
+/* Activate fill on button hover */
+.detail-action-btn:hover .btn-dual-icon .icon-line,
+.detail-copy-btn:not(.copied):hover .btn-dual-icon .icon-line {
+  opacity: 0;
+}
+
+.detail-action-btn:hover .btn-dual-icon .icon-fill,
+.detail-copy-btn:not(.copied):hover .btn-dual-icon .icon-fill {
+  opacity: 1;
+}
+
+/* Scale the whole icon wrapper on hover */
+.detail-action-btn:hover .btn-dual-icon,
+.detail-copy-btn:not(.copied):hover .btn-dual-icon {
+  transform: scale(1.12);
+}
+
+/* Mobile dropdown items inherit the same rules */
+.mobile-dropdown-item:hover .btn-dual-icon .icon-line { opacity: 0; }
+.mobile-dropdown-item:hover .btn-dual-icon .icon-fill { opacity: 1; }
+.mobile-dropdown-item:hover .btn-dual-icon { transform: scale(1.12); }
+
 
 /* Edit button — ghost style */
 .detail-action-edit {
@@ -189,7 +244,9 @@
 }
 
 .detail-meta-item .meta-icon {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-faint);
 }
 
 /* ── Tags ────────────────────────────────────────────────── */
@@ -416,9 +473,10 @@
 }
 
 .detail-sample-placeholder-icon {
-  font-size: 32px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 8px;
-  opacity: 0.6;
+  color: rgba(255, 255, 255, 0.15);
 }
 
 .detail-sample-placeholder-text {
@@ -574,6 +632,21 @@
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.12);
     color: #f4f4f5;
+  }
+
+  /* Open state — primary tint signals "menu is active, click to close" */
+  .detail-action-more.is-open {
+    background: rgba(34, 211, 238, 0.1);
+    border-color: rgba(34, 211, 238, 0.3);
+    color: #22d3ee;
+  }
+
+  .detail-action-more svg {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .detail-action-more.is-open svg {
+    transform: rotate(90deg);
   }
 
   .mobile-dropdown-wrapper {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Icon as RiIcon } from '@iconify/react';
 import { 
   BookOpen, 
   Star, 
@@ -8,14 +9,10 @@ import {
   Code2, 
   Sparkles, 
   ExternalLink,
-  LineChart,
-  PenTool,
-  Brain,
-  Wrench,
-  Globe,
   TrendingUp,
   ArrowUpRight
 } from 'lucide-react';
+import { ICON_SIZE } from '../config/iconSizes';
 import { type Prompt } from '../types';
 import { promptService, isPublishedStatus } from '../services/promptService';
 import { runService } from '../services/runService';
@@ -24,21 +21,21 @@ import { useNoIndex } from '../hooks/useNoIndex';
 
 import './Dashboard.css';
 
-// ── Category metadata: icon component + label + accent color ────────────
-const CATEGORY_META: Record<string, { label: string; icon: any; color: string; class: string }> = {
-  dev:         { label: 'Development',  icon: Code2,     color: 'var(--color-dev)', class: 'theme-dev' },
-  writing:     { label: 'Writing',      icon: PenTool,   color: 'var(--color-writing)', class: 'theme-writing' },
-  finance:     { label: 'Finance',      icon: LineChart, color: 'var(--color-finance)', class: 'theme-finance' },
-  learning:    { label: 'Learning',     icon: BookOpen,  color: 'var(--color-learning)', class: 'theme-learning' },
-  thinking:    { label: 'Thinking',     icon: Brain,     color: 'var(--color-thinking)', class: 'theme-thinking' },
-  tools:       { label: 'Tools',        icon: Wrench,    color: 'var(--color-tools)', class: 'theme-tools' },
-  translation: { label: 'Translation',  icon: Globe,     color: 'var(--color-translation)', class: 'theme-translation' },
+// ── Category metadata: iconName (Iconify RI) + label + accent color ────────────
+const CATEGORY_META: Record<string, { label: string; iconName: string; color: string; class: string }> = {
+  dev:         { label: 'Development',  iconName: 'ri:terminal-box-line',  color: 'var(--color-dev)',         class: 'theme-dev' },
+  writing:     { label: 'Writing',      iconName: 'ri:quill-pen-line',      color: 'var(--color-writing)',     class: 'theme-writing' },
+  finance:     { label: 'Finance',      iconName: 'ri:line-chart-line',     color: 'var(--color-finance)',     class: 'theme-finance' },
+  learning:    { label: 'Learning',     iconName: 'ri:book-read-line',      color: 'var(--color-learning)',    class: 'theme-learning' },
+  thinking:    { label: 'Thinking',     iconName: 'ri:brain-line',          color: 'var(--color-thinking)',    class: 'theme-thinking' },
+  tools:       { label: 'Tools',        iconName: 'ri:tools-line',          color: 'var(--color-tools)',       class: 'theme-tools' },
+  translation: { label: 'Translation',  iconName: 'ri:translate-2',         color: 'var(--color-translation)', class: 'theme-translation' },
 };
 
 interface CategoryStat {
   name: string;
   label: string;
-  icon: any;
+  iconName: string;
   color: string;
   class: string;
   count: number;
@@ -114,10 +111,10 @@ export default function Dashboard() {
         .map(([name, count]) => ({
           name,
           count,
-          label: CATEGORY_META[name].label,
-          icon:  CATEGORY_META[name].icon,
-          color: CATEGORY_META[name].color,
-          class: CATEGORY_META[name].class,
+          label:    CATEGORY_META[name].label,
+          iconName: CATEGORY_META[name].iconName,
+          color:    CATEGORY_META[name].color,
+          class:    CATEGORY_META[name].class,
         }));
 
       setCategories(derivedCategories);
@@ -289,7 +286,6 @@ export default function Dashboard() {
         {categories.length > 0 ? (
           <div className="dashboard-category-grid">
             {categories.map(cat => {
-              const IconComponent = cat.icon;
               return (
                 <Link
                   key={cat.name}
@@ -297,7 +293,7 @@ export default function Dashboard() {
                   className={`dashboard-category-card ${cat.class}`}
                 >
                   <div className="cat-icon-wrapper" style={{ color: cat.color }}>
-                    <IconComponent size={20} />
+                    <RiIcon icon={cat.iconName} width={ICON_SIZE.lg} height={ICON_SIZE.lg} />
                   </div>
                   <span className="category-name">{cat.label}</span>
                   <span className="category-count">{cat.count} prompt{cat.count !== 1 ? 's' : ''}</span>

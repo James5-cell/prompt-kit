@@ -2,16 +2,11 @@ import { type ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Settings2, 
-  ShieldAlert, 
-  GraduationCap, 
-  Code2, 
-  Sparkles, 
-  Plus, 
-  LogOut, 
+import { ICON_SIZE } from '../config/iconSizes';
+import { Icon as RiIcon } from '@iconify/react';
+import {
+  Plus,
+  LogOut,
   LogIn,
   ChevronDown,
   ChevronRight,
@@ -31,14 +26,15 @@ export default function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isExploreOpen, setIsExploreOpen] = useState(true);
 
+  // ── Main nav: RI line = inactive, RI fill = active ─────────────────────
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/prompts', label: 'Prompt Library', icon: BookOpen },
-    { path: '/settings', label: 'Settings', icon: Settings2 },
+    { path: '/dashboard', label: 'Dashboard',      icon: 'ri:dashboard-3-line',  iconActive: 'ri:dashboard-3-fill'  },
+    { path: '/prompts',   label: 'Prompt Library', icon: 'ri:book-shelf-line',   iconActive: 'ri:book-shelf-fill'   },
+    { path: '/settings',  label: 'Settings',        icon: 'ri:settings-4-line',   iconActive: 'ri:settings-4-fill'   },
   ];
 
   if (isAdmin) {
-    navItems.push({ path: '/admin', label: 'Admin Panel', icon: ShieldAlert });
+    navItems.push({ path: '/admin', label: 'Admin Panel', icon: 'ri:shield-keyhole-line', iconActive: 'ri:shield-keyhole-fill' });
   }
 
   return (
@@ -46,14 +42,14 @@ export default function Layout({ children }: LayoutProps) {
       {/* Mobile Topbar */}
       <div className="mobile-topbar" style={{ display: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Terminal size={18} className="terminal-glow-icon" />
+          <Terminal size={ICON_SIZE.md} className="terminal-glow-icon" />
           <h1>Prompt Kit</h1>
         </div>
         <button 
           className="menu-toggle" 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          {isMobileMenuOpen ? <X size={ICON_SIZE.lg} /> : <Menu size={ICON_SIZE.lg} />}
         </button>
       </div>
 
@@ -61,7 +57,7 @@ export default function Layout({ children }: LayoutProps) {
       <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <Terminal size={22} className="text-primary animate-pulse" />
+            <Terminal size={ICON_SIZE.lg} className="text-primary animate-pulse" />
             <h1 className="desktop-title">Prompt Kit</h1>
           </div>
           <p className="desktop-subtitle">Professional Prompt Management</p>
@@ -89,11 +85,11 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
                 {userEmail ? (
                   <button className="btn-secondary btn-auth" onClick={logout}>
-                    <LogOut size={13} style={{ marginRight: '6px' }} /> Logout
+                    <LogOut size={ICON_SIZE.sm} style={{ marginRight: '6px' }} /> Logout
                   </button>
                 ) : (
                   <button className="btn-primary btn-auth" onClick={loginWithGoogle}>
-                    <LogIn size={13} style={{ marginRight: '6px' }} /> Login
+                    <LogIn size={ICON_SIZE.sm} style={{ marginRight: '6px' }} /> Login
                   </button>
                 )}
               </>
@@ -106,7 +102,6 @@ export default function Layout({ children }: LayoutProps) {
         {/* Sidebar Nav */}
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            const Icon = item.icon;
             const isActive = location.pathname.startsWith(item.path);
             return (
               <Link
@@ -115,7 +110,13 @@ export default function Layout({ children }: LayoutProps) {
                 className={`nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <span className="nav-icon"><Icon size={16} /></span>
+                <span className="nav-icon">
+                  <RiIcon
+                    icon={isActive ? item.iconActive : item.icon}
+                    width={ICON_SIZE.md}
+                    height={ICON_SIZE.md}
+                  />
+                </span>
                 <span className="nav-label">{item.label}</span>
                 {isActive && (
                   <motion.span 
@@ -136,7 +137,7 @@ export default function Layout({ children }: LayoutProps) {
             >
               <span className="nav-group-title">Explore</span>
               <span className="nav-group-arrow">
-                {isExploreOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                {isExploreOpen ? <ChevronDown size={ICON_SIZE.xs} /> : <ChevronRight size={ICON_SIZE.xs} />}
               </span>
             </button>
             
@@ -155,7 +156,13 @@ export default function Layout({ children }: LayoutProps) {
                     className={`nav-item sub-item ${location.pathname === '/skill-lab' ? 'active' : ''}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <span className="nav-icon"><GraduationCap size={14} /></span>
+                    <span className="nav-icon">
+                      <RiIcon
+                        icon={location.pathname === '/skill-lab' ? 'ri:graduation-cap-fill' : 'ri:graduation-cap-line'}
+                        width={ICON_SIZE.md}
+                        height={ICON_SIZE.md}
+                      />
+                    </span>
                     <span className="nav-label">Skill Lab</span>
                   </Link>
                   <Link
@@ -163,7 +170,13 @@ export default function Layout({ children }: LayoutProps) {
                     className={`nav-item sub-item ${location.pathname === '/dev-library' ? 'active' : ''}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <span className="nav-icon"><Code2 size={14} /></span>
+                    <span className="nav-icon">
+                      <RiIcon
+                        icon={location.pathname === '/dev-library' ? 'ri:code-box-fill' : 'ri:code-box-line'}
+                        width={ICON_SIZE.md}
+                        height={ICON_SIZE.md}
+                      />
+                    </span>
                     <span className="nav-label">DevLibrary</span>
                   </Link>
                   <Link
@@ -171,7 +184,13 @@ export default function Layout({ children }: LayoutProps) {
                     className={`nav-item sub-item ${location.pathname === '/ai-insights' ? 'active' : ''}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <span className="nav-icon"><Sparkles size={14} /></span>
+                    <span className="nav-icon">
+                      <RiIcon
+                        icon={location.pathname === '/ai-insights' ? 'ri:sparkling-2-fill' : 'ri:sparkling-2-line'}
+                        width={ICON_SIZE.md}
+                        height={ICON_SIZE.md}
+                      />
+                    </span>
                     <span className="nav-label">AI Insights</span>
                   </Link>
                 </motion.div>
@@ -188,7 +207,7 @@ export default function Layout({ children }: LayoutProps) {
               className="new-prompt-btn"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <Plus size={14} style={{ marginRight: '6px' }} /> New Prompt
+              <Plus size={ICON_SIZE.sm} style={{ marginRight: '6px' }} /> New Prompt
             </Link>
           )}
         </div>

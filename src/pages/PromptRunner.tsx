@@ -1,17 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  Sparkles, 
-  Edit2, 
-  Play, 
-  Copy, 
-  Maximize2, 
-  Minimize2, 
-  Check, 
-  AlertCircle, 
-  RotateCcw 
-} from 'lucide-react';
+import { Icon as RiIcon } from '@iconify/react';
+import { ICON_SIZE } from '../config/iconSizes';
 import ReactMarkdown from 'react-markdown';
 
 import { type Prompt, type Run } from '../types';
@@ -351,7 +341,7 @@ function RunnerHeader({
       <div>
         <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-[var(--text-faint)] mb-1">
           <button onClick={onBack} className="hover:text-[var(--text-muted)] transition-colors flex items-center gap-1">
-            <ArrowLeft className="w-3 h-3" /> Dashboard
+            <RiIcon icon="ri:arrow-left-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Dashboard
           </button>
           <span>/</span>
           <span className="text-[var(--text-muted)]">Runner</span>
@@ -413,7 +403,7 @@ function RunnerSummaryBar({
     >
       <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
         <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)] shrink-0">
-          <Sparkles className="w-4 h-4" />
+          <RiIcon icon="ri:sparkling-2-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
         </div>
         <div className="flex flex-col gap-1.5 min-w-0 w-full">
           <div className="flex items-center gap-2 flex-wrap">
@@ -443,7 +433,7 @@ function RunnerSummaryBar({
         }}
         className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center justify-center w-full sm:w-auto mt-2 sm:mt-0"
       >
-        <Edit2 className="w-3 h-3" /> Adjust Config
+        <RiIcon icon="ri:edit-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Adjust Config
       </button>
     </div>
   );
@@ -488,8 +478,16 @@ function RunnerSetupPanel({
             className="btn-ghost preview-toggle-btn"
             onClick={() => setIsTemplateCollapsed(!isTemplateCollapsed)}
           >
-            <span className="btn-label-desktop">{isTemplateCollapsed ? 'Show Template ↴' : 'Hide Template ⬏'}</span>
-            <span className="btn-label-mobile">{isTemplateCollapsed ? 'Show ↴' : 'Hide ⬏'}</span>
+            <span className="btn-label-desktop">
+              {isTemplateCollapsed
+                ? <><RiIcon icon="ri:arrow-down-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Show Template</>
+                : <><RiIcon icon="ri:arrow-up-s-line"   width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Hide Template</>}
+            </span>
+            <span className="btn-label-mobile">
+              {isTemplateCollapsed
+                ? <><RiIcon icon="ri:arrow-down-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Show</>
+                : <><RiIcon icon="ri:arrow-up-s-line"   width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Hide</>}
+            </span>
           </button>
         </div>
         {!isTemplateCollapsed && (
@@ -511,7 +509,9 @@ function RunnerSetupPanel({
         {/* Integrated shared keys warning Notice */}
         {!hasAnyApiKey && (
           <div className="sandbox-inline-notice">
-            <span className="notice-icon">ℹ️</span>
+            <span className="notice-icon">
+              <RiIcon icon="ri:information-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+            </span>
             <span className="notice-text">
               Using shared platform keys. You can connect your personal keys in{' '}
               <a href="/settings" className="notice-link">Settings</a> to unlock custom model options.
@@ -596,7 +596,7 @@ function RunnerSetupPanel({
                 </>
               ) : (
                 <>
-                  <Play className="w-3 h-3 fill-current mr-1.5" /> <span>Test Prompt</span>
+                  <RiIcon icon="ri:play-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ marginRight: '6px' }} /> <span>Test Prompt</span>
                 </>
               )}
             </button>
@@ -659,7 +659,9 @@ function RunnerOutputPanel({
               disabled={isRunning}
               className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center disabled:opacity-50"
             >
-              {copied ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
+              {copied
+                ? <RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} className="text-[var(--success)]" />
+                : <RiIcon icon="ri:clipboard-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
             <button
@@ -668,12 +670,12 @@ function RunnerOutputPanel({
             >
               {isFocusMode ? (
                 <>
-                  <Minimize2 className="w-3.5 h-3.5" />
+                  <RiIcon icon="ri:fullscreen-exit-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
                   <span>Exit Focus</span>
                 </>
               ) : (
                 <>
-                  <Maximize2 className="w-3.5 h-3.5" />
+                  <RiIcon icon="ri:fullscreen-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
                   <span>Focus Mode</span>
                 </>
               )}
@@ -701,7 +703,7 @@ function RunnerOutputPanel({
         {testError && !isRunning && (
           <div className="bg-red-950/10 border border-[var(--danger)]/20 p-4 rounded-[var(--radius-sm)] text-[var(--danger)] flex flex-col gap-3">
             <div className="flex items-center gap-2 text-[var(--danger)] font-semibold text-xs">
-              <AlertCircle className="w-4 h-4" />
+              <RiIcon icon="ri:error-warning-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
               Execution Error
             </div>
             <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed m-0 bg-black/10 p-3 rounded-[var(--radius-sm)] border border-[var(--danger)]/10">
@@ -746,7 +748,7 @@ function RunnerOutputPanel({
               </ReactMarkdown>
               {!isRunning && runResult.finishReason === 'length' && (
                 <div className="flex items-center gap-2 text-xs text-amber-500 mt-4 bg-amber-500/5 border border-amber-500/20 p-3 rounded font-sans">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                  <RiIcon icon="ri:error-warning-line" width={ICON_SIZE.md} height={ICON_SIZE.md} className="shrink-0 text-amber-500" />
                   <span>
                     提示：模型输出已被截断，因为达到了该模型本身的单次最大 Token 限制（{runResult.modelUsed} 强制了输出字数上限）。建议在“系统后台设置”中切换为支持更大输出的引擎（如 Google Gemini）。
                   </span>
@@ -776,7 +778,7 @@ function RunnerOutputPanel({
             onClick={onEditConfig}
             className="btn-primary py-2 px-4 gap-1.5 flex items-center shadow-sm"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RiIcon icon="ri:refresh-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
             <span>Modify & Re-run</span>
           </button>
         </footer>

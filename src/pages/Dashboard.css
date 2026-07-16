@@ -290,9 +290,47 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background-color: var(--surface-2);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 6px;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Category card icon container: always-on theme color ───────────── */
+.dashboard-category-card.theme-dev .cat-icon-wrapper {
+  background-color: var(--color-dev-bg);
+  border-color: var(--color-dev-glow);
+  color: var(--color-dev);
+}
+.dashboard-category-card.theme-writing .cat-icon-wrapper {
+  background-color: var(--color-writing-bg);
+  border-color: var(--color-writing-glow);
+  color: var(--color-writing);
+}
+.dashboard-category-card.theme-finance .cat-icon-wrapper {
+  background-color: var(--color-finance-bg);
+  border-color: var(--color-finance-glow);
+  color: var(--color-finance);
+}
+.dashboard-category-card.theme-learning .cat-icon-wrapper {
+  background-color: var(--color-learning-bg);
+  border-color: var(--color-learning-glow);
+  color: var(--color-learning);
+}
+.dashboard-category-card.theme-thinking .cat-icon-wrapper {
+  background-color: var(--color-thinking-bg);
+  border-color: var(--color-thinking-glow);
+  color: var(--color-thinking);
+}
+.dashboard-category-card.theme-tools .cat-icon-wrapper {
+  background-color: var(--color-tools-bg);
+  border-color: var(--color-tools-glow);
+  color: var(--color-tools);
+}
+.dashboard-category-card.theme-translation .cat-icon-wrapper {
+  background-color: var(--color-translation-bg);
+  border-color: var(--color-translation-glow);
+  color: var(--color-translation);
 }
 
 .category-name {
@@ -322,13 +360,13 @@
   color: var(--text-muted);
 }
 
-/* Themes Overlays */
+/* ── Theme hover overlays: card border + glow, icon container glow ── */
 .dashboard-category-card.theme-dev:hover {
   border-color: var(--color-dev);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-dev-glow);
 }
 .dashboard-category-card.theme-dev:hover .cat-icon-wrapper {
-  background-color: var(--color-dev-bg);
+  box-shadow: 0 0 12px var(--color-dev-glow);
 }
 
 .dashboard-category-card.theme-finance:hover {
@@ -336,7 +374,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-finance-glow);
 }
 .dashboard-category-card.theme-finance:hover .cat-icon-wrapper {
-  background-color: var(--color-finance-bg);
+  box-shadow: 0 0 12px var(--color-finance-glow);
 }
 
 .dashboard-category-card.theme-writing:hover {
@@ -344,7 +382,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-writing-glow);
 }
 .dashboard-category-card.theme-writing:hover .cat-icon-wrapper {
-  background-color: var(--color-writing-bg);
+  box-shadow: 0 0 12px var(--color-writing-glow);
 }
 
 .dashboard-category-card.theme-thinking:hover {
@@ -352,7 +390,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-thinking-glow);
 }
 .dashboard-category-card.theme-thinking:hover .cat-icon-wrapper {
-  background-color: var(--color-thinking-bg);
+  box-shadow: 0 0 12px var(--color-thinking-glow);
 }
 
 .dashboard-category-card.theme-learning:hover {
@@ -360,7 +398,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-learning-glow);
 }
 .dashboard-category-card.theme-learning:hover .cat-icon-wrapper {
-  background-color: var(--color-learning-bg);
+  box-shadow: 0 0 12px var(--color-learning-glow);
 }
 
 .dashboard-category-card.theme-tools:hover {
@@ -368,7 +406,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-tools-glow);
 }
 .dashboard-category-card.theme-tools:hover .cat-icon-wrapper {
-  background-color: var(--color-tools-bg);
+  box-shadow: 0 0 12px var(--color-tools-glow);
 }
 
 .dashboard-category-card.theme-translation:hover {
@@ -376,7 +414,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 15px var(--color-translation-glow);
 }
 .dashboard-category-card.theme-translation:hover .cat-icon-wrapper {
-  background-color: var(--color-translation-bg);
+  box-shadow: 0 0 12px var(--color-translation-glow);
 }
 
 .empty-state-container {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil, Zap, Copy as CopyIcon, Check, MoreHorizontal } from 'lucide-react';
+import { Icon as RiIcon } from '@iconify/react';
+import { ICON_SIZE } from '../config/iconSizes';
+// All icons now use @iconify/react (RiIcon) — no Lucide imports needed
 import { type Prompt } from '../types';
 import { promptService } from '../services/promptService';
 import { useAuth } from '../auth/AuthContext';
@@ -75,7 +77,9 @@ export default function PromptDetail() {
   if (notFound || !prompt) {
     return (
       <div className="detail-not-found">
-        <div className="detail-not-found-icon">🔍</div>
+        <div className="detail-not-found-icon">
+          <RiIcon icon="ri:search-eye-line" width={ICON_SIZE.xxl} height={ICON_SIZE.xxl} style={{ opacity: 0.5 }} />
+        </div>
         <h2>Prompt Not Available</h2>
         <p>This prompt doesn't exist or hasn't been published yet.</p>
         <Link to="/prompts" className="detail-not-found-link">
@@ -91,7 +95,9 @@ export default function PromptDetail() {
       {/* ── Topbar ─────────────────────────────────────────── */}
       <div className="detail-topbar">
         <Link to="/prompts" className="detail-back-btn">
-          <ArrowLeft size={14} />
+          <span className="back-icon">
+            <RiIcon icon="ri:arrow-left-s-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+          </span>
           <span className="back-btn-desktop">Back to Library</span>
           <span className="back-btn-mobile">Back</span>
         </Link>
@@ -111,7 +117,10 @@ export default function PromptDetail() {
               }
             }}
           >
-            <Pencil size={13} /> Edit
+            <span className="btn-dual-icon">
+              <RiIcon icon="ri:edit-line"  className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+              <RiIcon icon="ri:edit-fill"  className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+            </span> Edit
           </Link>
           <Link
             to={`/prompts/${prompt.id}/run`}
@@ -123,13 +132,21 @@ export default function PromptDetail() {
               }
             }}
           >
-            <Zap size={13} /> Test
+            <span className="btn-dual-icon">
+              <RiIcon icon="ri:play-circle-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+              <RiIcon icon="ri:play-circle-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+            </span> Test
           </Link>
           <button
             className={`detail-copy-btn ${copied ? 'copied' : ''}`}
             onClick={handleCopy}
           >
-            {copied ? <><Check size={13} /> Copied</> : <><CopyIcon size={13} /> Copy Prompt</>}
+            {copied
+              ? <><RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /> Copied</>
+              : <><span className="btn-dual-icon">
+                  <RiIcon icon="ri:clipboard-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                  <RiIcon icon="ri:clipboard-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                </span> Copy Prompt</>}
           </button>
         </div>
 
@@ -139,18 +156,27 @@ export default function PromptDetail() {
             className={`detail-copy-btn ${copied ? 'copied' : ''}`}
             onClick={handleCopy}
           >
-            {copied ? <Check size={13} /> : <CopyIcon size={13} />}
+            {copied
+              ? <RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+              : <span className="btn-dual-icon">
+                  <RiIcon icon="ri:clipboard-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                  <RiIcon icon="ri:clipboard-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                </span>}
             <span className="mobile-btn-label">{copied ? 'Copied' : 'Copy'}</span>
           </button>
           
           <div className="mobile-dropdown-wrapper">
             <button
-              className="detail-action-btn detail-action-more"
+              className={`detail-action-btn detail-action-more ${isMenuOpen ? 'is-open' : ''}`}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-haspopup="true"
               aria-expanded={isMenuOpen}
             >
-              <MoreHorizontal size={14} />
+              <RiIcon
+                icon={isMenuOpen ? 'ri:close-circle-line' : 'ri:more-2-line'}
+                width={ICON_SIZE.sm}
+                height={ICON_SIZE.sm}
+              />
             </button>
             {isMenuOpen && (
               <>
@@ -167,7 +193,10 @@ export default function PromptDetail() {
                       }
                     }}
                   >
-                    <Pencil size={13} /> Edit Template
+                    <span className="btn-dual-icon">
+                      <RiIcon icon="ri:edit-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                      <RiIcon icon="ri:edit-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                    </span> Edit Template
                   </Link>
                   <Link
                     to={`/prompts/${prompt.id}/run`}
@@ -180,7 +209,10 @@ export default function PromptDetail() {
                       }
                     }}
                   >
-                    <Zap size={13} /> Test Prompt
+                    <span className="btn-dual-icon">
+                      <RiIcon icon="ri:play-circle-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                      <RiIcon icon="ri:play-circle-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                    </span> Test Prompt
                   </Link>
                 </div>
               </>
@@ -216,25 +248,25 @@ export default function PromptDetail() {
           <div className="detail-meta">
             {prompt.category && (
               <span className="detail-meta-item">
-                <span className="meta-icon">📂</span>
+                <span className="meta-icon"><RiIcon icon="ri:folder-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span>
                 {prompt.category}
               </span>
             )}
             {prompt.language && (
               <span className="detail-meta-item">
-                <span className="meta-icon">🌐</span>
+                <span className="meta-icon"><RiIcon icon="ri:earth-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span>
                 {prompt.language}
               </span>
             )}
             {prompt.updatedAt && (
               <span className="detail-meta-item">
-                <span className="meta-icon">📅</span>
+                <span className="meta-icon"><RiIcon icon="ri:calendar-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span>
                 Updated {new Date(prompt.updatedAt).toLocaleDateString()}
               </span>
             )}
             {prompt.usageCount !== undefined && prompt.usageCount > 0 && (
               <span className="detail-meta-item">
-                <span className="meta-icon">📊</span>
+                <span className="meta-icon"><RiIcon icon="ri:bar-chart-box-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span>
                 Used {prompt.usageCount} times
               </span>
             )}
@@ -249,7 +281,12 @@ export default function PromptDetail() {
               className={`detail-copy-btn ${copied ? 'copied' : ''}`}
               onClick={handleCopy}
             >
-              {copied ? <><Check size={13} /> Copied</> : <><CopyIcon size={13} /> Copy</>}
+              {copied
+                ? <><RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /> Copied</>
+                : <><span className="btn-dual-icon">
+                    <RiIcon icon="ri:clipboard-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                    <RiIcon icon="ri:clipboard-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                  </span> Copy</>}
             </button>
           </div>
           <div className="detail-content-block">
@@ -265,7 +302,7 @@ export default function PromptDetail() {
           {prompt.sampleOutput ? (
             <div className="detail-sample-output">
               <div className="detail-sample-label">
-                <span>✨</span> Example AI Response
+                <span><RiIcon icon="ri:sparkling-2-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span> Example AI Response
               </div>
               <div className="detail-sample-text">
                 <ReactMarkdown>{prompt.sampleOutput}</ReactMarkdown>
@@ -273,7 +310,9 @@ export default function PromptDetail() {
             </div>
           ) : (
             <div className="detail-sample-placeholder">
-              <div className="detail-sample-placeholder-icon">💡</div>
+              <div className="detail-sample-placeholder-icon">
+                <RiIcon icon="ri:lightbulb-line" width={ICON_SIZE.xxl} height={ICON_SIZE.xxl} />
+              </div>
               <p className="detail-sample-placeholder-text">
                 No sample output yet. Copy the prompt above and try it with your preferred AI assistant.
               </p>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Icon as RiIcon } from '@iconify/react';
 import { 
   Eye, 
   Copy as CopyIcon, 
@@ -10,18 +11,13 @@ import {
   Trash2, 
   Search, 
   ChevronDown, 
-  ChevronUp, 
+  ChevronUp,
   BookOpen,
-  Code2,
-  LineChart,
-  PenTool,
-  Brain,
-  Wrench,
-  Globe,
   CornerDownRight,
   Shuffle,
   ArrowRight,
 } from 'lucide-react';
+import { ICON_SIZE } from '../config/iconSizes';
 import { type Prompt, type Tag, type PromptStatus } from '../types';
 import { promptService, isPublishedStatus } from '../services/promptService';
 import { tagService } from '../services/tagService';
@@ -31,21 +27,21 @@ import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import './PromptList.css';
 
-// ── Category metadata: icon + label + accent color ────────────
-const CATEGORY_MAP: Record<string, { label: string; icon: any; color: string; class: string }> = {
-  dev:         { label: 'Development',  icon: Code2,     color: 'var(--color-dev)',         class: 'theme-dev' },
-  writing:     { label: 'Writing',      icon: PenTool,   color: 'var(--color-writing)',      class: 'theme-writing' },
-  finance:     { label: 'Finance',      icon: LineChart, color: 'var(--color-finance)',      class: 'theme-finance' },
-  learning:    { label: 'Learning',     icon: BookOpen,  color: 'var(--color-learning)',     class: 'theme-learning' },
-  thinking:    { label: 'Thinking',     icon: Brain,     color: 'var(--color-thinking)',     class: 'theme-thinking' },
-  tools:       { label: 'Tools',        icon: Wrench,    color: 'var(--color-tools)',        class: 'theme-tools' },
-  translation: { label: 'Translation',  icon: Globe,     color: 'var(--color-translation)',  class: 'theme-translation' },
+// ── Category metadata: iconName (Iconify RI) + label + accent color ────────────
+const CATEGORY_MAP: Record<string, { label: string; iconName: string; color: string; class: string }> = {
+  dev:         { label: 'Development',  iconName: 'ri:terminal-box-line',  color: 'var(--color-dev)',         class: 'theme-dev' },
+  writing:     { label: 'Writing',      iconName: 'ri:quill-pen-line',      color: 'var(--color-writing)',     class: 'theme-writing' },
+  finance:     { label: 'Finance',      iconName: 'ri:line-chart-line',     color: 'var(--color-finance)',     class: 'theme-finance' },
+  learning:    { label: 'Learning',     iconName: 'ri:book-read-line',      color: 'var(--color-learning)',    class: 'theme-learning' },
+  thinking:    { label: 'Thinking',     iconName: 'ri:brain-line',          color: 'var(--color-thinking)',    class: 'theme-thinking' },
+  tools:       { label: 'Tools',        iconName: 'ri:tools-line',          color: 'var(--color-tools)',       class: 'theme-tools' },
+  translation: { label: 'Translation',  iconName: 'ri:translate-2',         color: 'var(--color-translation)', class: 'theme-translation' },
 };
 
 const getCategoryMeta = (cat: string) => {
   const key = cat.toLowerCase();
   if (CATEGORY_MAP[key]) return CATEGORY_MAP[key];
-  return { label: cat, icon: BookOpen, color: 'var(--primary)', class: 'theme-default' };
+  return { label: cat, iconName: 'ri:bookmark-line', color: 'var(--primary)', class: 'theme-default' };
 };
 
 const TAG_SHOW_LIMIT = 10;
@@ -354,7 +350,6 @@ export default function PromptList() {
                 </button>
                 {uniqueCategories.sort().map(cat => {
                   const meta    = getCategoryMeta(cat);
-                  const CatIcon = meta.icon;
                   const isActive = selectedCategory === cat;
                   return (
                     <button
@@ -364,7 +359,7 @@ export default function PromptList() {
                       style={isActive ? { borderColor: meta.color, boxShadow: `0 0 10px ${meta.color}20` } : undefined}
                     >
                       <span className="cat-btn-icon" style={{ color: meta.color }}>
-                        <CatIcon size={14} />
+                        <RiIcon icon={meta.iconName} width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
                       </span>
                       <span className="cat-btn-label">{meta.label}</span>
                     </button>
@@ -438,7 +433,6 @@ export default function PromptList() {
           filteredPrompts.map(prompt => {
             const isExpanded   = !!expandedIds[prompt.id];
             const categoryMeta = prompt.category ? getCategoryMeta(prompt.category) : null;
-            const CatIcon      = categoryMeta?.icon ?? null;
 
             return (
               <motion.div
@@ -455,7 +449,14 @@ export default function PromptList() {
                           className={`card-cat-badge ${categoryMeta.class}`}
                           style={{ color: categoryMeta.color, borderColor: categoryMeta.color }}
                         >
-                          {CatIcon && <CatIcon size={10} style={{ marginRight: '4px' }} />}
+                          {categoryMeta.iconName && (
+                            <RiIcon
+                              icon={categoryMeta.iconName}
+                              width={10}
+                              height={10}
+                              style={{ marginRight: '4px', verticalAlign: 'middle' }}
+                            />
+                          )}
                           {categoryMeta.label}
                         </span>
                       )}
