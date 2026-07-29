@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+  define: {
+    'process.env.NEXT_PUBLIC_GA_ID': JSON.stringify(process.env.NEXT_PUBLIC_GA_ID),
+  },
   server: {
     proxy: {
       // NVIDIA API Catalog (dev-only) proxy to avoid browser CORS

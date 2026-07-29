@@ -15,6 +15,7 @@ import DevLibrary from './pages/DevLibrary';
 import AIInsights from './pages/AIInsights';
 import Admin from './pages/Admin';
 import About from './pages/About';
+import GoogleAnalytics from './components/GoogleAnalytics';
 import './App.css';
 
 /**
@@ -58,6 +59,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <GoogleAnalytics />
       <AuthProvider>
         <ConditionalLayout>
           <Routes>
