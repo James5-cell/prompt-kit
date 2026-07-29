@@ -14,6 +14,7 @@ import SkillLab from './pages/SkillLab';
 import DevLibrary from './pages/DevLibrary';
 import AIInsights from './pages/AIInsights';
 import Admin from './pages/Admin';
+import About from './pages/About';
 import './App.css';
 
 /**
@@ -75,6 +76,7 @@ function App() {
             <Route path="/skill-lab" element={<SkillLab />} />
             <Route path="/dev-library" element={<DevLibrary />} />
             <Route path="/ai-insights" element={<AIInsights />} />
+            <Route path="/about" element={<About />} />
           </Routes>
         </ConditionalLayout>
       </AuthProvider>

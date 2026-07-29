@@ -56,7 +56,7 @@ export default {
 
       let targetProvider = provider;
       let targetModel = model;
-      let targetApiKey = apiKey;
+      const targetApiKey = apiKey;
 
       if (!targetApiKey) {
         // Fallback: Read platform default config from Firestore

@@ -49,6 +49,12 @@ const STATIC_ROUTES = [
     changefreq: 'daily',
     lastmod: new Date().toISOString().split('T')[0],
   },
+  {
+    url: `${CANONICAL_DOMAIN}/about`,
+    priority: '0.8',
+    changefreq: 'monthly',
+    lastmod: new Date().toISOString().split('T')[0],
+  },
 ];
 
 // ─── Firebase Admin init ─────────────────────────────────────────────────────

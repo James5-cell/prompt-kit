@@ -5,7 +5,8 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="canonical" href="https://www.205011.xyz/" />
-    <meta name="description" content="Prompt Kit 是一個用來整理、重用與優化 AI Prompts 的知識庫和工作流工具，適合內容創作、研究、營運與個人生產力場景。" />
+    <meta name="description" content="Prompt Kit 是一個專業的 AI Prompt 知識庫与工作流工具，整理、重用與優化 AI 提示詞，適合內容創作、研究、程式開發與個人生產力場景。" />
+    <meta name="keywords" content="Prompt Kit, AI Prompts, 提示詞庫, Prompt Engineering, ChatGPT, Claude, Gemini, AI工作流" />
     <meta name="author" content="James5-cell" />
     <title>Prompt Kit — AI Prompt 知識庫與工作流工具</title>
 
@@ -23,7 +24,11 @@
     <meta name="twitter:description" content="整理、重用與優化 AI Prompts 的知識庫和工作流工具，適合內容創作、研究、營運與個人生產力場景。" />
     <meta name="twitter:image" content="https://www.205011.xyz/og-image.svg" />
 
-    <!-- JSON-LD -->
+    <!-- Machine Feed links -->
+    <link rel="alternate" type="text/plain" title="LLM Machine Feed" href="https://www.205011.xyz/llms.txt" />
+    <link rel="alternate" type="text/plain" title="Full LLM Knowledge Feed" href="https://www.205011.xyz/llms-full.txt" />
+
+    <!-- JSON-LD Rich Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org/",
@@ -33,7 +38,39 @@
           "@id": "https://www.205011.xyz/#website",
           "name": "Prompt Kit",
           "url": "https://www.205011.xyz/",
-          "description": "Prompt Kit 是一個用來整理、重用與優化 AI Prompts 的知識庫和工作流工具。"
+          "description": "Prompt Kit 是一個用來整理、重用與優化 AI Prompts 的知識庫和工作流工具。",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://www.205011.xyz/prompts?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://www.205011.xyz/#organization",
+          "name": "Prompt Kit",
+          "url": "https://www.205011.xyz/",
+          "logo": "https://www.205011.xyz/logo.png",
+          "founder": {
+            "@type": "Person",
+            "name": "James5-cell",
+            "alternateName": "postsoma-2050"
+          },
+          "sameAs": [
+            "https://github.com/James5-cell/prompt-kit"
+          ]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://www.205011.xyz/#software",
+          "name": "Prompt Kit",
+          "operatingSystem": "Web",
+          "applicationCategory": "DeveloperApplication",
+          "url": "https://www.205011.xyz/",
+          "description": "Professional prompt engineering knowledge base and multi-model execution workbench.",
+          "author": {
+            "@id": "https://www.205011.xyz/#organization"
+          }
         },
         {
           "@type": "WebPage",
@@ -62,11 +99,12 @@
         </p>
       </section>
       <section>
-        <h2>Key Takeaways</h2>
+        <h2>Key Features</h2>
         <ul>
           <li>建立可重用的 Prompt 知識庫。</li>
           <li>把提示詞整理成結構化工作流，而不是分散筆記。</li>
-          <li>適合 AI 寫作、研究、內容營運與個人生產力。</li>
+          <li>支援多 LLM 模型（OpenAI, Anthropic, Gemini, NVIDIA NIM）的實時執行與測試。</li>
+          <li>適合 AI 寫作、研究、程式開發与內容營運。</li>
         </ul>
       </section>
     </noscript>

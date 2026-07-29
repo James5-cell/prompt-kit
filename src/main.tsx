@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { HelmetProvider } from 'react-helmet-async'
 import { addCollection } from '@iconify/react'
 import riData from '@iconify-json/ri/icons.json'
 import './index.css'
@@ -10,6 +11,8 @@ addCollection(riData)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
   </StrictMode>,
 )

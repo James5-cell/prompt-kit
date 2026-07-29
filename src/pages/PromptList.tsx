@@ -25,6 +25,7 @@ import { useAuth } from '../auth/AuthContext';
 import LoginModal from '../components/LoginModal';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
+import SEOHead from '../components/SEOHead';
 import './PromptList.css';
 
 // ── Category metadata: iconName (Iconify RI) + label + accent color ────────────
@@ -280,6 +281,41 @@ export default function PromptList() {
   // ── Render ─────────────────────────────────────────────────
   return (
     <div className="prompt-list-page animate-fade-in">
+      <SEOHead
+        title="Public Prompt Library — Prompt Kit"
+        description="Explore, search, filter, and execute high-quality, production-tested AI prompt templates for ChatGPT, Claude, Gemini, and LLM workflows."
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'CollectionPage',
+              '@id': 'https://www.205011.xyz/prompts#collectionpage',
+              'url': 'https://www.205011.xyz/prompts',
+              'name': 'Public Prompt Library — Prompt Kit',
+              'description': 'Browsable catalog of production-tested AI prompts for ChatGPT, Claude, Gemini, and LLM workflows.',
+              'isPartOf': { '@id': 'https://www.205011.xyz/#website' }
+            },
+            {
+              '@type': 'BreadcrumbList',
+              '@id': 'https://www.205011.xyz/prompts#breadcrumb',
+              'itemListElement': [
+                {
+                  '@type': 'ListItem',
+                  'position': 1,
+                  'name': 'Home',
+                  'item': 'https://www.205011.xyz/'
+                },
+                {
+                  '@type': 'ListItem',
+                  'position': 2,
+                  'name': 'Prompts Catalog',
+                  'item': 'https://www.205011.xyz/prompts'
+                }
+              ]
+            }
+          ]
+        }}
+      />
 
       {/* ── Row 1: Title + Action Buttons ──────────────────────── */}
       <div className="page-header">

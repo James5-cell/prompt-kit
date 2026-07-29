@@ -718,14 +718,14 @@ function RunnerOutputPanel({
             <div className="space-y-4 text-sm leading-relaxed animate-in fade-in duration-200">
               <ReactMarkdown
                 components={{
-                  h1: ({node, ...props}) => <h1 className="text-base font-bold text-[var(--text)] mt-6 mb-2 border-b border-[var(--border)] pb-1" {...props} />,
-                  h2: ({node, ...props}) => <h2 className="text-sm font-semibold text-[var(--text)] mt-5 mb-2" {...props} />,
-                  h3: ({node, ...props}) => <h3 className="text-xs font-semibold text-[var(--text)] mt-4 mb-2" {...props} />,
-                  p: ({node, ...props}) => <p className="leading-relaxed mb-4 text-[var(--text-muted)]" {...props} />,
-                  ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1 text-[var(--text-muted)]" {...props} />,
-                  ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1 text-[var(--text-muted)]" {...props} />,
-                  li: ({node, ...props}) => <li className="text-[var(--text-muted)]" {...props} />,
-                  code: ({node, className, children, ...props}: any) => {
+                  h1: ({node: _, ...props}) => <h1 className="text-base font-bold text-[var(--text)] mt-6 mb-2 border-b border-[var(--border)] pb-1" {...props} />,
+                  h2: ({node: _, ...props}) => <h2 className="text-sm font-semibold text-[var(--text)] mt-5 mb-2" {...props} />,
+                  h3: ({node: _, ...props}) => <h3 className="text-xs font-semibold text-[var(--text)] mt-4 mb-2" {...props} />,
+                  p: ({node: _, ...props}) => <p className="leading-relaxed mb-4 text-[var(--text-muted)]" {...props} />,
+                  ul: ({node: _, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1 text-[var(--text-muted)]" {...props} />,
+                  ol: ({node: _, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1 text-[var(--text-muted)]" {...props} />,
+                  li: ({node: _, ...props}) => <li className="text-[var(--text-muted)]" {...props} />,
+                  code: ({node: _, className, children, ...props}: any) => {
                     const match = /language-(\w+)/.exec(className || '');
                     const content = String(children).replace(/\n$/, '');
                     const isInline = !match && !content.includes('\n');
@@ -739,7 +739,7 @@ function RunnerOutputPanel({
                       </pre>
                     );
                   },
-                  blockquote: ({node, ...props}) => (
+                  blockquote: ({node: _, ...props}) => (
                     <blockquote className="border-l-4 border-[var(--text-faint)] pl-4 italic my-4 text-[var(--text-muted)] bg-[var(--surface-2)]/30 py-1 pr-2 rounded" {...props} />
                   ),
                 }}

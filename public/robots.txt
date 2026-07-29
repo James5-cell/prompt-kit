@@ -1,94 +1,176 @@
 # ─── Prompt Kit — robots.txt ────────────────────────────────────────────────
 # Canonical domain: https://www.205011.xyz
-# Updated: 2026-05-22
+# Updated: 2026-07-29
 
 # ── Standard crawlers ───────────────────────────────────────────────────────
 User-agent: *
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 # ── AI / LLM crawlers (explicitly permitted) ────────────────────────────────
+
 User-agent: GPTBot
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 User-agent: ChatGPT-User
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 User-agent: PerplexityBot
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 User-agent: ClaudeBot
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 User-agent: anthropic-ai
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 User-agent: Applebot-Extended
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /p/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 
 User-agent: GoogleOther
 Allow: /
 Allow: /p/
-Allow: /prompts$
-Allow: /prompts/$
-Disallow: /prompts/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
 Disallow: /dashboard
 Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: Amazonbot
+Allow: /
+Allow: /p/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: Bytespider
+Allow: /
+Allow: /p/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: CCBot
+Allow: /
+Allow: /p/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /_nvidia/
+
+User-agent: Diffbot
+Allow: /
+Allow: /p/
+Allow: /prompts
+Allow: /about
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /admin
 Disallow: /api/
 Disallow: /_nvidia/
 

@@ -8,6 +8,7 @@ import { promptService } from '../services/promptService';
 import { useAuth } from '../auth/AuthContext';
 import LoginModal from '../components/LoginModal';
 import ReactMarkdown from 'react-markdown';
+import SEOHead from '../components/SEOHead';
 import './PromptDetail.css';
 
 /**
@@ -92,6 +93,77 @@ export default function PromptDetail() {
   // ── Render published prompt ────────────────────────────────
   return (
     <div className="prompt-detail">
+      <SEOHead
+        title={prompt.title}
+        description={prompt.summary || prompt.content.slice(0, 160)}
+        canonical={`https://www.205011.xyz/p/${prompt.id}`}
+        ogType="article"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'Article',
+              '@id': `https://www.205011.xyz/p/${prompt.id}#article`,
+              'url': `https://www.205011.xyz/p/${prompt.id}`,
+              'headline': prompt.title,
+              'description': prompt.summary || prompt.content.slice(0, 160),
+              'inLanguage': prompt.language === 'english' ? 'en' : 'zh-Hant',
+              'author': {
+                '@type': 'Person',
+                'name': 'James5-cell'
+              },
+              'publisher': {
+                '@id': 'https://www.205011.xyz/#organization'
+              },
+              'datePublished': prompt.createdAt ? new Date(prompt.createdAt).toISOString() : new Date().toISOString(),
+              'dateModified': prompt.updatedAt ? new Date(prompt.updatedAt).toISOString() : new Date().toISOString(),
+              'articleSection': prompt.category || 'Tools'
+            },
+            {
+              '@type': 'HowTo',
+              '@id': `https://www.205011.xyz/p/${prompt.id}#howto`,
+              'name': `How to use ${prompt.title}`,
+              'description': prompt.summary || 'Execute this prompt in ChatGPT, Claude, Gemini or Prompt Kit workbench.',
+              'step': [
+                {
+                  '@type': 'HowToStep',
+                  'name': 'Copy Prompt',
+                  'text': 'Copy the structured prompt text from Prompt Kit.'
+                },
+                {
+                  '@type': 'HowToStep',
+                  'name': 'Execute in LLM Engine',
+                  'text': 'Paste into target AI model or run directly using Prompt Kit multi-model executor.'
+                }
+              ]
+            },
+            {
+              '@type': 'BreadcrumbList',
+              '@id': `https://www.205011.xyz/p/${prompt.id}#breadcrumb`,
+              'itemListElement': [
+                {
+                  '@type': 'ListItem',
+                  'position': 1,
+                  'name': 'Home',
+                  'item': 'https://www.205011.xyz/'
+                },
+                {
+                  '@type': 'ListItem',
+                  'position': 2,
+                  'name': 'Prompts Catalog',
+                  'item': 'https://www.205011.xyz/prompts'
+                },
+                {
+                  '@type': 'ListItem',
+                  'position': 3,
+                  'name': prompt.title,
+                  'item': `https://www.205011.xyz/p/${prompt.id}`
+                }
+              ]
+            }
+          ]
+        }}
+      />
       {/* ── Topbar ─────────────────────────────────────────── */}
       <div className="detail-topbar">
         <Link to="/prompts" className="detail-back-btn">

@@ -75,19 +75,6 @@ export default function Dashboard() {
   const [sparklinePoints, setSparklinePoints] = useState<string>('0,40 120,40');
   const [sparklineFillPoints, setSparklineFillPoints] = useState<string>('0,40 120,40');
 
-  useEffect(() => {
-    loadData();
-
-    const handleStorageChange = () => { loadData(); };
-    window.addEventListener('storage', handleStorageChange);
-    const refreshInterval = setInterval(() => { loadData(); }, 30000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(refreshInterval);
-    };
-  }, [isAdmin]);
-
   async function loadData() {
     try {
       let allPrompts = await promptService.getAllPrompts();
@@ -167,6 +154,19 @@ export default function Dashboard() {
       alert(`Failed to load data: ${error}`);
     }
   }
+
+  useEffect(() => {
+    loadData();
+
+    const handleStorageChange = () => { loadData(); };
+    window.addEventListener('storage', handleStorageChange);
+    const refreshInterval = setInterval(() => { loadData(); }, 30000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(refreshInterval);
+    };
+  }, [isAdmin]);
 
   const firstName = userEmail ? userEmail.split('@')[0] : null;
 
