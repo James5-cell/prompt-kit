@@ -20,7 +20,7 @@ export default defineConfig({
       },
       // Proxy backend API requests to Vercel dev server to preserve IndexedDB data on 5173
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
     },

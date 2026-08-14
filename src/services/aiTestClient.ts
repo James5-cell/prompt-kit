@@ -1,3 +1,18 @@
+export type ChatRole = 'user' | 'assistant' | 'system';
+
+export type ChatMessageItem = {
+  role: ChatRole;
+  content: string;
+};
+
+export type ExecuteChatOptions = {
+  systemPrompt?: string;
+  messages: ChatMessageItem[];
+  provider?: string;
+  model?: string;
+  apiKey?: string;
+};
+
 export type PromptRunResult = {
   text: string;
   latencyMs: number;
@@ -6,28 +21,12 @@ export type PromptRunResult = {
   finishReason?: string;
 };
 
-export async function executePrompt(
-  input: {
-    prompt: string;
-    provider: string;
-    model: string;
-    apiKey: string;
-  },
+async function parseSSEResponse(
+  res: Response,
+  fallbackProvider: string,
+  fallbackModel: string,
   onChunk?: (text: string) => void
 ): Promise<PromptRunResult> {
-  const res = await fetch('/api/ai-test', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      prompt: input.prompt,
-      provider: input.provider,
-      model: input.model,
-      apiKey: input.apiKey,
-    }),
-  });
-
   if (!res.ok) {
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -120,8 +119,49 @@ export async function executePrompt(
   return {
     text: accumulatedText,
     latencyMs: metadata?.latencyMs ?? 0,
-    providerUsed: metadata?.providerUsed ?? input.provider,
-    modelUsed: metadata?.modelUsed ?? input.model,
+    providerUsed: metadata?.providerUsed ?? fallbackProvider,
+    modelUsed: metadata?.modelUsed ?? fallbackModel,
     finishReason: metadata?.finishReason,
   };
+}
+
+export async function executeChatStream(
+  input: ExecuteChatOptions,
+  onChunk?: (text: string) => void
+): Promise<PromptRunResult> {
+  const res = await fetch('/api/ai-test', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      systemPrompt: input.systemPrompt,
+      messages: input.messages,
+      provider: input.provider,
+      model: input.model,
+      apiKey: input.apiKey,
+    }),
+  });
+
+  return parseSSEResponse(res, input.provider || '', input.model || '', onChunk);
+}
+
+export async function executePrompt(
+  input: {
+    prompt: string;
+    provider: string;
+    model: string;
+    apiKey: string;
+  },
+  onChunk?: (text: string) => void
+): Promise<PromptRunResult> {
+  return executeChatStream(
+    {
+      messages: [{ role: 'user', content: input.prompt }],
+      provider: input.provider,
+      model: input.model,
+      apiKey: input.apiKey,
+    },
+    onChunk
+  );
 }

@@ -12,10 +12,24 @@ import type { AIModelConfig } from '../config/aiModels';
 import { db } from '../storage/db';
 import { generateId } from '../utils/id';
 import type { AIProvider } from '../services/aiProviders/types';
-import { executePrompt, type PromptRunResult } from '../services/aiTestClient';
+import { executeChatStream, type ChatMessageItem } from '../services/aiTestClient';
 import { useNoIndex } from '../hooks/useNoIndex';
 import { useAuth } from '../auth/AuthContext';
 import './PromptRunner.css';
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: number;
+  latencyMs?: number;
+  providerUsed?: string;
+  modelUsed?: string;
+  isStreaming?: boolean;
+  finishReason?: string;
+}
+
+export const MAX_TURNS = 5;
 
 export default function PromptRunner() {
   useNoIndex();
@@ -24,11 +38,17 @@ export default function PromptRunner() {
   const { isAdmin } = useAuth();
   
   const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
+  
   const [testInput, setTestInput] = useState<string>('');
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [testError, setTestError] = useState<string>('');
   
-  const [runResult, setRunResult] = useState<PromptRunResult | null>(null);
+  // Multi-turn conversation state & turn counter
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const turnCount = messages.filter(m => m.role === 'user').length;
+  const isMaxTurnsReached = turnCount >= MAX_TURNS;
   
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('gemini');
   const [selectedModelId, setSelectedModelId] = useState<string>('');
@@ -36,10 +56,10 @@ export default function PromptRunner() {
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [hasAnyApiKey, setHasAnyApiKey] = useState<boolean>(false);
   
-  const [showConfig, setShowConfig] = useState<boolean>(true);
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+  const [showTemplateDuringChat, setShowTemplateDuringChat] = useState<boolean>(false);
   
-  const resultRef = useRef<HTMLDivElement>(null);
+  const chatFeedEndRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,7 +120,6 @@ export default function PromptRunner() {
     aiModelRegistry.getModelsForProvider(selectedProvider).then(models => {
       setAvailableModels(models);
       if (models.length > 0) {
-        // Only reset selection if the current model is not valid for this provider
         if (!models.some(m => m.id === selectedModelId)) {
           setSelectedModelId(models[0].id);
         }
@@ -110,21 +129,19 @@ export default function PromptRunner() {
     });
   }, [selectedProvider, isInitializing, selectedModelId]);
 
-  // Smooth scroll to results when result starts running or is generated
+  // Auto-scroll chat feed when messages update or streaming
   useEffect(() => {
-    if (!showConfig && (isRunning || runResult || testError)) {
-      const timer = setTimeout(() => {
-        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 150);
-      return () => clearTimeout(timer);
+    if (messages.length > 0) {
+      chatFeedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [showConfig, isRunning, !!runResult, !!testError]);
+  }, [messages, isRunning]);
 
   const loadPrompt = async (promptId: string) => {
     try {
       const loadedPrompt = await promptService.getPrompt(promptId);
       if (loadedPrompt) {
         setPrompt(loadedPrompt);
+        setIsFavorite(!!loadedPrompt.favorite);
       } else {
         navigate('/prompts');
       }
@@ -133,92 +150,155 @@ export default function PromptRunner() {
     }
   };
 
-  const handleRun = async () => {
+  const handleToggleFavorite = async () => {
     if (!prompt) return;
-    
+    try {
+      const updated = await promptService.toggleFavorite(prompt.id);
+      setPrompt(updated);
+      setIsFavorite(!!updated.favorite);
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    }
+  };
+
+  const handleCopyPrompt = () => {
+    if (!prompt) return;
+    navigator.clipboard.writeText(prompt.content);
+    setCopiedPrompt(true);
+    setTimeout(() => setCopiedPrompt(false), 2000);
+  };
+
+  const handleSendMessage = async (textToSend?: string) => {
+    if (!prompt || isRunning || isMaxTurnsReached) return;
+
+    const rawInput = (textToSend !== undefined ? textToSend : testInput).trim();
+    // On turn 1, if input is empty, provide a friendly kick-off message
+    const userMsgContent = rawInput || (messages.length === 0 ? 'Hello, please proceed based on the prompt instructions.' : '');
+    if (!userMsgContent) return;
+
     setIsRunning(true);
     setTestError('');
-    setRunResult(null);
-    setShowConfig(false);
-    
+
+    const userMsgId = generateId();
+    const userMessage: ChatMessage = {
+      id: userMsgId,
+      role: 'user',
+      content: userMsgContent,
+      createdAt: Date.now(),
+    };
+
+    const assistantMsgId = generateId();
+    const assistantMessage: ChatMessage = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      createdAt: Date.now(),
+      isStreaming: true,
+    };
+
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    setTestInput('');
+
+    // Prepare message history for the API
+    const historyForApi: ChatMessageItem[] = [
+      ...messages.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: userMsgContent },
+    ];
+
+    const startTime = Date.now();
+
     try {
       await aiConfigService.loadConfig();
-      // Retrieve the API key for the selected provider directly from IndexedDB settings (optional BYOK)
       const apiKey = (await db.getSetting(`${selectedProvider}ApiKey`)) || '';
 
       if (hasAnyApiKey && !selectedModelId) {
         throw new Error('Please select an AI model first.');
       }
 
-      let finalContent = prompt.content;
-      if (testInput.trim()) {
-        if (prompt.content.includes('{{input}}')) {
-          finalContent = prompt.content.replace(/\{\{input\}\}/g, testInput);
-        } else {
-          finalContent = `${prompt.content}\n\nContext/Input:\n${testInput}`;
-        }
+      // Process prompt template variables on initial turn
+      let effectiveSystemPrompt = prompt.content;
+      if (messages.length === 0 && prompt.content.includes('{{input}}')) {
+        effectiveSystemPrompt = prompt.content.replace(/\{\{input\}\}/g, userMsgContent);
       }
 
-      const result = await executePrompt(
+      const result = await executeChatStream(
         {
-          prompt: finalContent,
+          systemPrompt: effectiveSystemPrompt,
+          messages: historyForApi,
           provider: hasAnyApiKey ? selectedProvider : '',
           model: hasAnyApiKey ? selectedModelId : '',
           apiKey: apiKey,
         },
         (chunkText) => {
-          setRunResult({
-            text: chunkText,
-            latencyMs: 0,
-            providerUsed: hasAnyApiKey ? selectedProvider : 'fallback',
-            modelUsed: hasAnyApiKey ? selectedModelId : 'fallback',
-          });
+          // Real-time incremental streaming update to the specific assistant message
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMsgId
+                ? { ...msg, content: chunkText, isStreaming: true }
+                : msg
+            )
+          );
         }
       );
-      
-      setRunResult(result);
 
+      // Finalize assistant message with performance and model details
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                content: result.text,
+                isStreaming: false,
+                latencyMs: result.latencyMs || (Date.now() - startTime),
+                providerUsed: result.providerUsed,
+                modelUsed: result.modelUsed,
+                finishReason: result.finishReason,
+              }
+            : msg
+        )
+      );
+
+      // Archive run to IndexedDB
       const run: Run = {
         id: generateId(),
         promptId: prompt.id,
-        input: testInput ? { value: testInput } : {},
+        input: {
+          turn: historyForApi.filter(m => m.role === 'user').length,
+          message: userMsgContent,
+        },
         output: result.text,
         model: result.modelUsed || selectedModelId || 'default',
         parameters: {},
-        latency: result.latencyMs ?? 0,
+        latency: result.latencyMs ?? (Date.now() - startTime),
         createdAt: Date.now(),
       };
 
       await db.saveRun(run);
       await promptService.incrementUsageCount(prompt.id);
-      
+
       const updatedPrompt = await promptService.getPrompt(prompt.id);
       if (updatedPrompt) {
         setPrompt(updatedPrompt);
       }
-
     } catch (error: any) {
       console.error('Execution failed:', error);
       setTestError(error.message || 'An error occurred during prompt execution');
+      // Clean up empty streaming placeholder if call failed completely
+      setMessages(prev => prev.filter(m => m.id !== assistantMsgId || m.content.length > 0));
     } finally {
       setIsRunning(false);
     }
   };
 
-  const clearResult = () => {
-    setRunResult(null);
+  const handleResetChat = () => {
+    setMessages([]);
+    setTestInput('');
     setTestError('');
-    setShowConfig(true);
     setIsFocusMode(false);
-  };
-
-  const handleEditAndReRun = () => {
-    setRunResult(null);
-    setTestError('');
-    setShowConfig(true);
+    setShowTemplateDuringChat(false);
     setTimeout(() => {
       topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    }, 50);
   };
 
   if (!prompt) {
@@ -251,12 +331,14 @@ export default function PromptRunner() {
       <meta property="og:description" content="AI Prompt Evaluation and Execution Environment" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <main className={`max-w-4xl mx-auto p-4 pb-16 md:p-10 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
+      <main className={`max-w-4xl mx-auto p-4 pb-20 md:p-8 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
         {!isFocusMode && (
           <RunnerHeader 
             title={prompt.title}
             usageCount={prompt.usageCount}
             lastUsedAt={prompt.lastUsedAt}
+            isFavorite={isFavorite}
+            onToggleFavorite={handleToggleFavorite}
             onBack={() => navigate('/dashboard')}
             onEditPrompt={() => navigate(`/prompts/${prompt.id}`)}
             isAdmin={isAdmin}
@@ -264,25 +346,9 @@ export default function PromptRunner() {
         )}
 
         <div className="flex flex-col gap-6" ref={topRef}>
-          {/* Collapsed Summary Bar */}
-          {!isFocusMode && (
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${!showConfig ? 'max-h-[500px] opacity-100 mb-2' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-              {!showConfig && (
-                <RunnerSummaryBar 
-                  provider={selectedProvider}
-                  model={selectedModelId}
-                  hasAnyApiKey={hasAnyApiKey}
-                  testInput={testInput}
-                  isRunning={isRunning}
-                  onExpand={() => setShowConfig(true)}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Configuration Workspace (Setup Panel) */}
-          {!isFocusMode && (
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showConfig ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+          {/* Initial State / Config View (when no messages yet) */}
+          {messages.length === 0 && (
+            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-200">
               <RunnerSetupPanel 
                 promptContent={prompt.content}
                 hasAnyApiKey={hasAnyApiKey}
@@ -294,23 +360,94 @@ export default function PromptRunner() {
                 testInput={testInput}
                 setTestInput={setTestInput}
                 isRunning={isRunning}
-                onRun={handleRun}
+                onRun={() => handleSendMessage(testInput)}
               />
             </div>
           )}
 
-          {/* Model Output Panel */}
-          <div ref={resultRef} className="w-full">
-            <RunnerOutputPanel 
-              isRunning={isRunning}
-              runResult={runResult}
-              testError={testError}
-              isFocusMode={isFocusMode}
-              setIsFocusMode={setIsFocusMode}
-              onClear={clearResult}
-              onEditConfig={handleEditAndReRun}
-            />
-          </div>
+          {/* Active Multi-Turn Sandbox View (when messages exist) */}
+          {messages.length > 0 && (
+            <div className="flex flex-col gap-5 w-full animate-in fade-in duration-200">
+              {/* Sticky / Top HUD Progress & Status Bar */}
+              <PlaygroundStatusBar 
+                turnCount={turnCount}
+                maxTurns={MAX_TURNS}
+                provider={selectedProvider}
+                model={selectedModelId}
+                hasAnyApiKey={hasAnyApiKey}
+                isFocusMode={isFocusMode}
+                setIsFocusMode={setIsFocusMode}
+                showTemplate={showTemplateDuringChat}
+                setShowTemplate={setShowTemplateDuringChat}
+                onReset={handleResetChat}
+              />
+
+              {/* Collapsible Prompt Template Drawer */}
+              {showTemplateDuringChat && (
+                <div className="sandbox-preview-box animate-in fade-in slide-in-from-top-1 duration-150 border border-cyan-500/30">
+                  <div className="flex justify-between items-center mb-2 pb-2 border-b border-[var(--border)]">
+                    <span className="text-xs font-semibold uppercase text-cyan-400 flex items-center gap-1.5">
+                      <RiIcon icon="ri:file-code-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+                      System Prompt Template
+                    </span>
+                    <button 
+                      onClick={handleCopyPrompt}
+                      className="btn-ghost py-0.5 px-2 text-[11px] gap-1 flex items-center text-zinc-300 hover:text-white"
+                    >
+                      {copiedPrompt ? (
+                        <><RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} className="text-emerald-400" /> Copied</>
+                      ) : (
+                        <><RiIcon icon="ri:clipboard-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Copy Template</>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="mono-code">
+                    <code>{prompt.content}</code>
+                  </pre>
+                </div>
+              )}
+
+              {/* Multi-turn Interactive Chat Feed */}
+              <InteractiveChatFeed 
+                messages={messages}
+                isRunning={isRunning}
+                testError={testError}
+                onRetryLast={() => {
+                  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+                  if (lastUserMsg) {
+                    handleSendMessage(lastUserMsg.content);
+                  }
+                }}
+              />
+
+              {/* Conversion Card when reaching 5-turn demo limit */}
+              {isMaxTurnsReached && !isRunning && (
+                <ConversionCard 
+                  promptContent={prompt.content}
+                  isFavorite={isFavorite}
+                  copiedPrompt={copiedPrompt}
+                  onToggleFavorite={handleToggleFavorite}
+                  onCopyPrompt={handleCopyPrompt}
+                  onRestart={handleResetChat}
+                  onGoSettings={() => navigate('/settings')}
+                />
+              )}
+
+              {/* Bottom Continuous Floating Input Deck */}
+              <ContinuousChatInput 
+                testInput={testInput}
+                setTestInput={setTestInput}
+                isRunning={isRunning}
+                isMaxTurnsReached={isMaxTurnsReached}
+                turnCount={turnCount}
+                maxTurns={MAX_TURNS}
+                onSend={() => handleSendMessage(testInput)}
+                onRestart={handleResetChat}
+              />
+
+              <div ref={chatFeedEndRef} />
+            </div>
+          )}
         </div>
       </main>
     </>
@@ -325,6 +462,8 @@ function RunnerHeader({
   title, 
   usageCount, 
   lastUsedAt, 
+  isFavorite,
+  onToggleFavorite,
   onBack, 
   onEditPrompt,
   isAdmin
@@ -332,32 +471,34 @@ function RunnerHeader({
   title: string; 
   usageCount?: number; 
   lastUsedAt?: number; 
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
   onBack: () => void; 
   onEditPrompt: () => void; 
   isAdmin: boolean;
 }) {
   return (
-    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-[var(--border)]">
+    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-white/[0.08]">
       <div>
-        <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-[var(--text-faint)] mb-1">
-          <button onClick={onBack} className="hover:text-[var(--text-muted)] transition-colors flex items-center gap-1">
+        <div className="flex items-center gap-2 text-[11px] uppercase font-bold tracking-wider text-zinc-400 mb-1.5">
+          <button onClick={onBack} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
             <RiIcon icon="ri:arrow-left-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Dashboard
           </button>
           <span>/</span>
-          <span className="text-[var(--text-muted)]">Runner</span>
+          <span className="text-cyan-400">Interactive Sandbox</span>
         </div>
-        <h1 className="text-xl font-bold text-[var(--text)] tracking-tight">
+        <h1 className="text-2xl font-extrabold text-white tracking-tight">
           {title}
         </h1>
         {usageCount !== undefined && (
-          <p className="text-xs text-[var(--text-faint)] mt-1 flex items-center gap-2 font-normal">
-            <span>Usage: <strong className="text-[var(--text-muted)]">{usageCount}</strong> times</span>
+          <p className="text-xs text-zinc-400 mt-1.5 flex items-center gap-2 font-normal">
+            <span>Runs: <strong className="text-zinc-200">{usageCount}</strong></span>
             {lastUsedAt && (
               <>
                 <span>•</span>
                 <span>
                   Last active:{' '}
-                  <time dateTime={new Date(lastUsedAt).toISOString()} className="text-[var(--text-muted)]">
+                  <time dateTime={new Date(lastUsedAt).toISOString()} className="text-zinc-300">
                     {new Date(lastUsedAt).toLocaleDateString()}
                   </time>
                 </span>
@@ -367,74 +508,120 @@ function RunnerHeader({
         )}
       </div>
       
-      {isAdmin && (
-        <nav className="flex gap-2">
+      <nav className="flex items-center gap-2.5">
+        <button
+          onClick={onToggleFavorite}
+          className={`btn-secondary py-1.5 px-3.5 text-xs flex items-center gap-1.5 transition-all ${
+            isFavorite 
+              ? 'text-amber-400 border-amber-400/40 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.2)]' 
+              : 'text-zinc-300 hover:text-white'
+          }`}
+          title={isFavorite ? 'Saved in Favorites' : 'Save to Favorites'}
+        >
+          <RiIcon 
+            icon={isFavorite ? 'ri:star-fill' : 'ri:star-line'} 
+            width={ICON_SIZE.sm} 
+            height={ICON_SIZE.sm} 
+          />
+          <span>{isFavorite ? 'Saved' : 'Favorite'}</span>
+        </button>
+
+        {isAdmin && (
           <button
-            className="btn-secondary py-1.5 px-3 text-xs"
+            className="btn-secondary py-1.5 px-3.5 text-xs text-zinc-300 hover:text-white"
             onClick={onEditPrompt}
           >
             Edit Template
           </button>
-        </nav>
-      )}
+        )}
+      </nav>
     </header>
   );
 }
 
-function RunnerSummaryBar({ 
-  provider, 
-  model, 
+function PlaygroundStatusBar({
+  turnCount,
+  maxTurns,
+  provider,
+  model,
   hasAnyApiKey,
-  testInput, 
-  isRunning,
-  onExpand 
-}: { 
-  provider: string; 
-  model: string; 
+  isFocusMode,
+  setIsFocusMode,
+  showTemplate,
+  setShowTemplate,
+  onReset
+}: {
+  turnCount: number;
+  maxTurns: number;
+  provider: string;
+  model: string;
   hasAnyApiKey: boolean;
-  testInput: string; 
-  isRunning: boolean;
-  onExpand: () => void; 
+  isFocusMode: boolean;
+  setIsFocusMode: (f: boolean) => void;
+  showTemplate: boolean;
+  setShowTemplate: (s: boolean | ((prev: boolean) => boolean)) => void;
+  onReset: () => void;
 }) {
   return (
-    <div 
-      onClick={onExpand}
-      className="w-full bg-[var(--surface)] border border-[var(--border)] p-4 rounded-[var(--radius-md)] hover:border-[var(--border-strong)] transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-    >
-      <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-        <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)] shrink-0">
-          <RiIcon icon="ri:sparkling-2-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
+    <div className="playground-status-bar">
+      <div className="playground-progress-wrap">
+        {/* Progress Pill */}
+        <div className="hud-progress-pill">
+          <RiIcon icon="ri:gamepad-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+          <span>Demo: {turnCount}/{maxTurns} Turns</span>
+          
+          {/* 5-Segment Visual Glowing Dots */}
+          <div className="turn-dots ml-1" title={`${turnCount} of ${maxTurns} turns completed`}>
+            {Array.from({ length: maxTurns }).map((_, idx) => {
+              const isCompleted = idx < turnCount;
+              const isActive = idx === turnCount && turnCount < maxTurns;
+              return (
+                <div 
+                  key={idx} 
+                  className={`turn-dot ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`} 
+                />
+              );
+            })}
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5 min-w-0 w-full">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-[var(--text)]">Configuration Locked</span>
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] font-semibold border border-[var(--border)]">
-              {isRunning ? 'Running...' : 'Output Ready'}
-            </span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs text-[var(--text-faint)]">
-            <div>
-              Engine: <strong className="text-[var(--text-muted)] font-medium">{hasAnyApiKey ? `${provider} (${model})` : 'Fallback Engine'}</strong>
-            </div>
-            {testInput && (
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="hidden sm:inline text-[var(--border)]">|</span>
-                <span className="shrink-0">Input:</span>
-                <span className="text-[var(--text-muted)] font-medium italic truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[400px]">"{testInput}"</span>
-              </div>
-            )}
-          </div>
+
+        {/* Engine Capsule */}
+        <div className="hud-engine-capsule">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="text-zinc-300">
+            {hasAnyApiKey ? `${provider} (${model})` : 'Shared NIM (Llama 3.1 8B)'}
+          </span>
         </div>
       </div>
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          onExpand();
-        }}
-        className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center justify-center w-full sm:w-auto mt-2 sm:mt-0"
-      >
-        <RiIcon icon="ri:edit-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Adjust Config
-      </button>
+
+      {/* Unified Glassmorphic Action Tools */}
+      <div className="hud-actions-group">
+        <button
+          onClick={() => setShowTemplate(prev => !prev)}
+          className={`hud-glass-btn ${showTemplate ? 'active' : ''}`}
+          title="View Prompt Template"
+        >
+          <RiIcon icon="ri:file-text-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
+          <span>{showTemplate ? 'Hide Template' : 'Template'}</span>
+        </button>
+
+        <button
+          onClick={onReset}
+          className="hud-glass-btn"
+          title="Restart Sandbox"
+        >
+          <RiIcon icon="ri:refresh-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
+          <span className="hidden sm:inline">Reset</span>
+        </button>
+
+        <button
+          onClick={() => setIsFocusMode(!isFocusMode)}
+          className={`hud-glass-btn ${isFocusMode ? 'active' : ''}`}
+          title={isFocusMode ? 'Exit Fullscreen Focus' : 'Fullscreen Focus Mode'}
+        >
+          <RiIcon icon={isFocusMode ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-line'} width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -464,12 +651,12 @@ function RunnerSetupPanel({
   isRunning: boolean;
   onRun: () => void;
 }) {
-  const [isTemplateCollapsed, setIsTemplateCollapsed] = useState(true);
+  const [isTemplateCollapsed, setIsTemplateCollapsed] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* 1. Prompt Preview Section (Quiet, Compact, Vertical Accordion) */}
+      {/* 1. Prompt Preview Section */}
       <section className="sandbox-preview-section">
         <div className="sandbox-preview-header">
           <span className="sandbox-preview-title">Prompt Template</span>
@@ -501,9 +688,11 @@ function RunnerSetupPanel({
 
       {/* 2. Interactive Test Sandbox Card */}
       <section className="test-sandbox-card">
-        {/* Title / Label */}
-        <div className="sandbox-card-header">
-          <h3 className="sandbox-card-title">Interactive Sandbox</h3>
+        <div className="sandbox-card-header flex justify-between items-center">
+          <h3 className="sandbox-card-title">Interactive Demo Sandbox (5-Turn Experience)</h3>
+          <span className="text-[11px] text-cyan-400 font-semibold px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30">
+            Multi-Turn Ready
+          </span>
         </div>
 
         {/* Integrated shared keys warning Notice */}
@@ -513,13 +702,13 @@ function RunnerSetupPanel({
               <RiIcon icon="ri:information-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
             </span>
             <span className="notice-text">
-              Using shared platform keys. You can connect your personal keys in{' '}
-              <a href="/settings" className="notice-link">Settings</a> to unlock custom model options.
+              Using shared platform keys with a 5-turn free trial limit. You can connect your personal keys in{' '}
+              <a href="/settings" className="notice-link font-medium">Settings</a> for unlimited conversations.
             </span>
           </div>
         )}
 
-        {/* Compact Engine Selector inside Sandbox Card (rendered only if they have personal keys) */}
+        {/* Engine Selector inside Sandbox Card */}
         {hasAnyApiKey && (
           <div className="sandbox-engine-row">
             <div className="engine-select-group">
@@ -562,14 +751,24 @@ function RunnerSetupPanel({
           </div>
         )}
 
-        {/* Dynamic focus console-input wrapper */}
+        {/* Console-input wrapper */}
         <div className={`console-input-wrapper ${isInputFocused ? 'focused' : ''}`}>
           <textarea
             id="test-input"
             className="console-textarea"
-            placeholder="Provide context or variables to test the prompt template..."
+            placeholder={
+              promptContent.includes('{{input}}')
+                ? "Enter variable values or initial test context to start the demo..."
+                : "Type initial message or instructions to start the 5-turn interactive demo..."
+            }
             value={testInput}
             onChange={(e) => setTestInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                onRun();
+              }
+            }}
             onFocus={() => setIsInputFocused(true)}
             onBlur={() => setIsInputFocused(false)}
             disabled={isRunning}
@@ -578,8 +777,8 @@ function RunnerSetupPanel({
           <div className="console-action-bar">
             <span className="console-hint">
               {promptContent.includes('{{input}}')
-                ? '{{input}} variables will be replaced in prompt.'
-                : 'Input will append at the end of the prompt.'}
+                ? '{{input}} in prompt template will be replaced on initial turn.'
+                : 'Press Enter to start interactive multi-turn demo.'}
             </span>
             <button
               className="btn-primary console-execute-btn"
@@ -592,11 +791,12 @@ function RunnerSetupPanel({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Running...</span>
+                  <span>Starting...</span>
                 </>
               ) : (
                 <>
-                  <RiIcon icon="ri:play-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ marginRight: '6px' }} /> <span>Test Prompt</span>
+                  <RiIcon icon="ri:play-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ marginRight: '6px' }} /> 
+                  <span>Start Demo (Turn 1/5)</span>
                 </>
               )}
             </button>
@@ -607,182 +807,436 @@ function RunnerSetupPanel({
   );
 }
 
-function RunnerOutputPanel({
+function InteractiveChatFeed({
+  messages,
   isRunning,
-  runResult,
   testError,
-  isFocusMode,
-  setIsFocusMode,
-  onClear,
-  onEditConfig
+  onRetryLast
 }: {
+  messages: ChatMessage[];
   isRunning: boolean;
-  runResult: PromptRunResult | null;
   testError: string;
-  isFocusMode: boolean;
-  setIsFocusMode: (f: boolean) => void;
-  onClear: () => void;
-  onEditConfig: () => void;
+  onRetryLast: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
-  const handleCopy = () => {
-    if (runResult) {
-      navigator.clipboard.writeText(runResult.text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleCopyMessage = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMsgId(id);
+    setTimeout(() => setCopiedMsgId(null), 2000);
   };
 
-  if (!isRunning && !runResult && !testError) return null;
-
   return (
-    <article className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] overflow-hidden shadow-sm flex flex-col animate-in fade-in duration-200">
-      {/* Panel Header */}
-      <header className="flex justify-between items-center bg-[var(--surface)] p-4 border-b border-[var(--border)]">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse"></div>
-          <div>
-            <h3 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider">Model Output</h3>
-            {runResult && (
-              <p className="text-[10px] text-[var(--text-faint)] m-0 mt-0.5">
-                {runResult.providerUsed} ({runResult.modelUsed}){runResult.latencyMs > 0 ? ` • ${runResult.latencyMs}ms` : ''}
-              </p>
-            )}
-          </div>
-        </div>
-        
-        {runResult && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopy}
-              disabled={isRunning}
-              className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center disabled:opacity-50"
-            >
-              {copied
-                ? <RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} className="text-[var(--success)]" />
-                : <RiIcon icon="ri:clipboard-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-            <button
-              onClick={() => setIsFocusMode(!isFocusMode)}
-              className="btn-secondary py-1.5 px-3 text-xs gap-1.5 flex items-center"
-            >
-              {isFocusMode ? (
-                <>
-                  <RiIcon icon="ri:fullscreen-exit-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-                  <span>Exit Focus</span>
-                </>
-              ) : (
-                <>
-                  <RiIcon icon="ri:fullscreen-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-                  <span>Focus Mode</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </header>
-
-      {/* Panel Body */}
-      <div className="p-6 md:p-8 bg-[var(--surface)] flex-1 min-h-[220px]">
-        {/* Loading State Skeleton */}
-        {isRunning && !runResult && (
-          <div className="flex flex-col gap-4 animate-pulse w-full">
-            <div className="h-4 bg-[var(--surface-2)] rounded w-1/3"></div>
-            <div className="h-3 bg-[var(--surface-2)] rounded w-full"></div>
-            <div className="h-3 bg-[var(--surface-2)] rounded w-5/6"></div>
-            <div className="flex items-center gap-2 text-xs text-[var(--text-faint)] mt-4 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse"></span>
-              Generating response...
+    <div className="playground-feed">
+      {messages.map((msg, index) => {
+        if (msg.role === 'user') {
+          // Calculate user turn index
+          const userTurnIndex = messages.slice(0, index + 1).filter(m => m.role === 'user').length;
+          
+          return (
+            <div key={msg.id || index} className="chat-row-user animate-in fade-in duration-150">
+              <div className="chat-bubble-user">
+                <div className="chat-user-header">
+                  <div className="flex items-center gap-1.5">
+                    <RiIcon icon="ri:user-3-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
+                    <span>You</span>
+                  </div>
+                  <span className="text-[10px] text-cyan-300/80 font-mono">
+                    Turn {userTurnIndex}/5
+                  </span>
+                </div>
+                <div className="whitespace-pre-wrap">{msg.content}</div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        }
 
-        {/* Error Output */}
-        {testError && !isRunning && (
-          <div className="bg-red-950/10 border border-[var(--danger)]/20 p-4 rounded-[var(--radius-sm)] text-[var(--danger)] flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-[var(--danger)] font-semibold text-xs">
+        return (
+          <div key={msg.id || index} className="chat-row-assistant animate-in fade-in duration-200">
+            <article className="chat-bubble-assistant">
+              {/* Modular Meta Header */}
+              <header className="assistant-meta-header">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="model-chip">
+                    <RiIcon icon="ri:cpu-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} className="text-cyan-400" />
+                    <span className="model-chip-title">
+                      {msg.modelUsed || 'AI Model'}
+                    </span>
+                  </div>
+
+                  {msg.latencyMs !== undefined && msg.latencyMs > 0 && (
+                    <span className="latency-micro-tag">
+                      <RiIcon icon="ri:flashlight-fill" width={10} height={10} />
+                      {(msg.latencyMs / 1000).toFixed(2)}s
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {msg.content && !msg.isStreaming && (
+                    <button
+                      onClick={() => handleCopyMessage(msg.content, msg.id)}
+                      className="btn-ghost py-1 px-2.5 text-[11px] gap-1 flex items-center text-zinc-400 hover:text-white transition-colors"
+                      title="Copy response"
+                    >
+                      {copiedMsgId === msg.id ? (
+                        <><RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} className="text-emerald-400" /> Copied</>
+                      ) : (
+                        <><RiIcon icon="ri:clipboard-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Copy</>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </header>
+
+              {/* Markdown Body Content with Enhanced Typography */}
+              <div className="assistant-body-content">
+                {msg.isStreaming && !msg.content ? (
+                  <div className="flex flex-col gap-2.5 py-3 animate-pulse">
+                    <div className="h-3.5 bg-white/10 rounded w-1/3"></div>
+                    <div className="h-3 bg-white/5 rounded w-full"></div>
+                    <div className="h-3 bg-white/5 rounded w-4/5"></div>
+                    <div className="flex items-center gap-2 text-xs text-cyan-400 mt-2 font-mono">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                      AI is generating response...
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm prose-invert max-w-none text-zinc-200">
+                    <div className="space-y-4 text-[13.5px] leading-relaxed">
+                      <ReactMarkdown
+                        components={{
+                          h1: ({node: _, ...props}) => (
+                            <h1 className="text-base font-bold text-white mt-5 mb-2.5 pb-1.5 border-b border-white/10 flex items-center gap-2 before:content-[''] before:w-1 before:h-4 before:bg-cyan-400 before:rounded-full" {...props} />
+                          ),
+                          h2: ({node: _, ...props}) => (
+                            <h2 className="text-sm font-semibold text-cyan-200 mt-4 mb-2" {...props} />
+                          ),
+                          h3: ({node: _, ...props}) => (
+                            <h3 className="text-xs font-semibold text-zinc-300 mt-3 mb-1.5 uppercase tracking-wider" {...props} />
+                          ),
+                          p: ({node: _, ...props}) => (
+                            <p className="leading-relaxed mb-3.5 text-zinc-300" {...props} />
+                          ),
+                          strong: ({node: _, ...props}) => (
+                            <strong className="font-semibold text-white" {...props} />
+                          ),
+                          ul: ({node: _, ...props}) => (
+                            <ul className="list-disc pl-5 mb-3.5 space-y-1.5 text-zinc-300" {...props} />
+                          ),
+                          ol: ({node: _, ...props}) => (
+                            <ol className="list-decimal pl-5 mb-3.5 space-y-1.5 text-zinc-300" {...props} />
+                          ),
+                          li: ({node: _, ...props}) => (
+                            <li className="text-zinc-300 leading-normal" {...props} />
+                          ),
+                          code: ({node: _, className, children, ...props}: any) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            const content = String(children).replace(/\n$/, '');
+                            const isInline = !match && !content.includes('\n');
+                            
+                            if (isInline) {
+                              return (
+                                <code className="bg-cyan-950/40 text-cyan-300 border border-cyan-500/25 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+
+                            return (
+                              <div className="codeblock-container">
+                                <div className="codeblock-header">
+                                  <div className="macos-dots">
+                                    <div className="macos-dot dot-red"></div>
+                                    <div className="macos-dot dot-yellow"></div>
+                                    <div className="macos-dot dot-green"></div>
+                                  </div>
+                                  <span className="uppercase text-[10px] tracking-wider text-zinc-500">
+                                    {match ? match[1] : 'code'}
+                                  </span>
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(content)}
+                                    className="hover:text-white transition-colors"
+                                    title="Copy Code"
+                                  >
+                                    <RiIcon icon="ri:clipboard-line" width={12} height={12} />
+                                  </button>
+                                </div>
+                                <pre className="p-4 font-mono text-xs text-zinc-200 overflow-x-auto m-0 leading-relaxed">
+                                  <code className={className} {...props}>{children}</code>
+                                </pre>
+                              </div>
+                            );
+                          },
+                          blockquote: ({node: _, ...props}) => (
+                            <blockquote className="border-l-2 border-cyan-400/70 bg-cyan-950/20 pl-4 py-2 my-3.5 rounded-r-lg text-zinc-300 italic text-sm" {...props} />
+                          ),
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+
+                      {msg.isStreaming && (
+                        <div className="flex items-center gap-2 text-xs text-cyan-400 mt-3 font-mono">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                          Streaming response...
+                        </div>
+                      )}
+
+                      {!msg.isStreaming && msg.finishReason === 'length' && (
+                        <div className="flex items-center gap-2 text-xs text-amber-400 mt-3 bg-amber-950/30 border border-amber-500/30 p-2.5 rounded-lg">
+                          <RiIcon icon="ri:error-warning-line" width={ICON_SIZE.md} height={ICON_SIZE.md} className="shrink-0 text-amber-400" />
+                          <span>Output was truncated due to model max token limit.</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </article>
+          </div>
+        );
+      })}
+
+      {/* Error Output Banner */}
+      {testError && !isRunning && (
+        <div className="bg-red-950/30 border border-red-500/30 p-4 rounded-xl text-red-300 flex flex-col gap-3 animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-semibold text-xs text-red-400">
               <RiIcon icon="ri:error-warning-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
               Execution Error
             </div>
-            <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed m-0 bg-black/10 p-3 rounded-[var(--radius-sm)] border border-[var(--danger)]/10">
-              {testError}
-            </pre>
+            <button
+              onClick={onRetryLast}
+              className="btn-secondary py-1 px-3 text-xs gap-1 flex items-center border-red-500/30 hover:border-red-400 text-red-300"
+            >
+              <RiIcon icon="ri:refresh-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Retry
+            </button>
           </div>
-        )}
+          <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed m-0 bg-black/40 p-3 rounded-lg border border-red-500/20 text-red-200">
+            {testError}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Markdown Output */}
-        {runResult && (
-          <div className="prose prose-sm prose-invert max-w-none text-[var(--text)]">
-            <div className="space-y-4 text-sm leading-relaxed animate-in fade-in duration-200">
-              <ReactMarkdown
-                components={{
-                  h1: ({node: _, ...props}) => <h1 className="text-base font-bold text-[var(--text)] mt-6 mb-2 border-b border-[var(--border)] pb-1" {...props} />,
-                  h2: ({node: _, ...props}) => <h2 className="text-sm font-semibold text-[var(--text)] mt-5 mb-2" {...props} />,
-                  h3: ({node: _, ...props}) => <h3 className="text-xs font-semibold text-[var(--text)] mt-4 mb-2" {...props} />,
-                  p: ({node: _, ...props}) => <p className="leading-relaxed mb-4 text-[var(--text-muted)]" {...props} />,
-                  ul: ({node: _, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1 text-[var(--text-muted)]" {...props} />,
-                  ol: ({node: _, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1 text-[var(--text-muted)]" {...props} />,
-                  li: ({node: _, ...props}) => <li className="text-[var(--text-muted)]" {...props} />,
-                  code: ({node: _, className, children, ...props}: any) => {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const content = String(children).replace(/\n$/, '');
-                    const isInline = !match && !content.includes('\n');
-                    return isInline ? (
-                      <code className="bg-[var(--surface-2)] px-1.5 py-0.5 rounded text-xs font-mono text-[var(--text)] border border-[var(--border)]" {...props}>
-                        {children}
-                      </code>
-                    ) : (
-                      <pre className="bg-[var(--surface-2)] p-4 rounded-[var(--radius-sm)] border border-[var(--border)] overflow-x-auto my-3 font-mono text-xs text-[var(--text-muted)] leading-normal">
-                        <code className={className} {...props}>{children}</code>
-                      </pre>
-                    );
-                  },
-                  blockquote: ({node: _, ...props}) => (
-                    <blockquote className="border-l-4 border-[var(--text-faint)] pl-4 italic my-4 text-[var(--text-muted)] bg-[var(--surface-2)]/30 py-1 pr-2 rounded" {...props} />
-                  ),
-                }}
-              >
-                {runResult.text}
-              </ReactMarkdown>
-              {!isRunning && runResult.finishReason === 'length' && (
-                <div className="flex items-center gap-2 text-xs text-amber-500 mt-4 bg-amber-500/5 border border-amber-500/20 p-3 rounded font-sans">
-                  <RiIcon icon="ri:error-warning-line" width={ICON_SIZE.md} height={ICON_SIZE.md} className="shrink-0 text-amber-500" />
-                  <span>
-                    提示：模型输出已被截断，因为达到了该模型本身的单次最大 Token 限制（{runResult.modelUsed} 强制了输出字数上限）。建议在“系统后台设置”中切换为支持更大输出的引擎（如 Google Gemini）。
-                  </span>
-                </div>
-              )}
-              {isRunning && (
-                <div className="flex items-center gap-2 text-xs text-[var(--text-faint)] mt-4 font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse"></span>
-                  Generating response...
-                </div>
-              )}
-            </div>
+function ContinuousChatInput({
+  testInput,
+  setTestInput,
+  isRunning,
+  isMaxTurnsReached,
+  turnCount,
+  maxTurns,
+  onSend,
+  onRestart
+}: {
+  testInput: string;
+  setTestInput: (s: string) => void;
+  isRunning: boolean;
+  isMaxTurnsReached: boolean;
+  turnCount: number;
+  maxTurns: number;
+  onSend: () => void;
+  onRestart: () => void;
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  if (isMaxTurnsReached) {
+    return (
+      <div className="w-full bg-[#0d121d] border border-white/10 p-3.5 rounded-xl flex items-center justify-between gap-3 text-xs text-zinc-300 shadow-lg">
+        <div className="flex items-center gap-2">
+          <RiIcon icon="ri:lock-2-line" width={ICON_SIZE.md} height={ICON_SIZE.md} className="text-amber-400" />
+          <span>Demo turn limit reached ({maxTurns}/{maxTurns}). See options below to continue or save.</span>
+        </div>
+        <button
+          onClick={onRestart}
+          className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 shrink-0 text-zinc-200 hover:text-white"
+        >
+          <RiIcon icon="ri:refresh-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Play Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`floating-input-deck ${isFocused ? 'focused' : ''}`}>
+      <textarea
+        className="deck-textarea"
+        placeholder={`Turn ${turnCount + 1}/${maxTurns}: Type follow-up message or variable test...`}
+        value={testInput}
+        onChange={(e) => setTestInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+          }
+        }}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        disabled={isRunning}
+        rows={2}
+      />
+
+      <div className="deck-footer">
+        <span className="text-[11px] text-zinc-400">
+          Turn <strong className="text-cyan-400">{turnCount + 1}</strong> of {maxTurns} • Enter ↵ to send, Shift+Enter for newline
+        </span>
+
+        <button
+          className="deck-send-btn"
+          onClick={onSend}
+          disabled={isRunning || !testInput.trim()}
+        >
+          {isRunning ? (
+            <>
+              <svg className="animate-spin h-3.5 w-3.5 text-zinc-950 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Sending...</span>
+            </>
+          ) : (
+            <>
+              <RiIcon icon="ri:send-plane-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
+              <span>Send Reply</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ConversionCard({
+  promptContent: _promptContent,
+  isFavorite,
+  copiedPrompt,
+  onToggleFavorite,
+  onCopyPrompt,
+  onRestart,
+  onGoSettings
+}: {
+  promptContent: string;
+  isFavorite: boolean;
+  copiedPrompt: boolean;
+  onToggleFavorite: () => void;
+  onCopyPrompt: () => void;
+  onRestart: () => void;
+  onGoSettings: () => void;
+}) {
+  return (
+    <section className="conversion-card animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* Header */}
+      <div className="conversion-header">
+        <div className="conversion-title-row">
+          <div className="conversion-icon-badge">
+            <RiIcon icon="ri:sparkling-2-fill" width={ICON_SIZE.lg} height={ICON_SIZE.lg} />
           </div>
-        )}
+          <div>
+            <h3 className="text-base font-bold text-white tracking-tight m-0">
+              🎉 5 轮互动试玩已完成！ / Demo Completed
+            </h3>
+            <p className="text-xs text-zinc-300 mt-1 m-0">
+              你已直观体验该 Prompt 的完整多轮效果。选择以下操作进行深度使用或收藏管理：
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Secondary Reset / Re-run Footer */}
-      {(runResult || testError) && !isRunning && (
-        <footer className="bg-[var(--surface)] p-4 border-t border-[var(--border)] flex justify-between items-center gap-3">
-          <button
-            onClick={onClear}
-            className="btn-ghost py-1.5 px-3 text-xs gap-1.5 text-[var(--text-faint)] hover:text-[var(--text-muted)]"
-          >
-            <span>Reset Workbench</span>
-          </button>
-          <button
-            onClick={onEditConfig}
-            className="btn-primary py-2 px-4 gap-1.5 flex items-center shadow-sm"
-          >
-            <RiIcon icon="ri:refresh-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-            <span>Modify & Re-run</span>
-          </button>
-        </footer>
-      )}
-    </article>
+      {/* 4-Card Action Grid */}
+      <div className="conversion-grid">
+        {/* 1. 一键收藏 */}
+        <div 
+          onClick={onToggleFavorite}
+          className="conversion-action-item group"
+          role="button"
+          tabIndex={0}
+        >
+          <div className={`conversion-action-icon ${isFavorite ? 'text-amber-400 border-amber-400/40 bg-amber-400/10' : ''}`}>
+            <RiIcon 
+              icon={isFavorite ? 'ri:star-fill' : 'ri:star-line'} 
+              width={ICON_SIZE.lg} 
+              height={ICON_SIZE.lg} 
+            />
+          </div>
+          <div className="conversion-action-content">
+            <span className="conversion-action-title flex items-center gap-1.5">
+              {isFavorite ? '已收藏至本地库' : '一键收藏 Prompt'}
+              {isFavorite && <span className="text-[10px] text-amber-400 font-normal">(Saved)</span>}
+            </span>
+            <span className="conversion-action-desc">
+              保存到个人收藏夹，随时在 Dashboard 快速复用。
+            </span>
+          </div>
+        </div>
+
+        {/* 2. 复制完整 Prompt */}
+        <div 
+          onClick={onCopyPrompt}
+          className="conversion-action-item group"
+          role="button"
+          tabIndex={0}
+        >
+          <div className={`conversion-action-icon ${copiedPrompt ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10' : ''}`}>
+            <RiIcon 
+              icon={copiedPrompt ? 'ri:checkbox-circle-fill' : 'ri:clipboard-line'} 
+              width={ICON_SIZE.lg} 
+              height={ICON_SIZE.lg} 
+            />
+          </div>
+          <div className="conversion-action-content">
+            <span className="conversion-action-title">
+              {copiedPrompt ? '已复制到剪贴板！' : '复制完整 Prompt 模版'}
+            </span>
+            <span className="conversion-action-desc">
+              一键带走完整设定，直接粘贴到 ChatGPT 或 Claude 使用。
+            </span>
+          </div>
+        </div>
+
+        {/* 3. 配置个人 API Key (BYOK) */}
+        <div 
+          onClick={onGoSettings}
+          className="conversion-action-item group border-cyan-500/30 hover:border-cyan-400/60"
+          role="button"
+          tabIndex={0}
+        >
+          <div className="conversion-action-icon text-cyan-400 border-cyan-500/30 bg-cyan-500/10">
+            <RiIcon icon="ri:key-2-line" width={ICON_SIZE.lg} height={ICON_SIZE.lg} />
+          </div>
+          <div className="conversion-action-content">
+            <span className="conversion-action-title text-cyan-400 flex items-center gap-1">
+              配置个人 API Key (BYOK)
+              <RiIcon icon="ri:arrow-right-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
+            </span>
+            <span className="conversion-action-desc">
+              前往 Settings 连接私有 Key，解锁无轮次限制与自由模型切换。
+            </span>
+          </div>
+        </div>
+
+        {/* 4. 清空重玩 */}
+        <div 
+          onClick={onRestart}
+          className="conversion-action-item group"
+          role="button"
+          tabIndex={0}
+        >
+          <div className="conversion-action-icon">
+            <RiIcon icon="ri:refresh-line" width={ICON_SIZE.lg} height={ICON_SIZE.lg} />
+          </div>
+          <div className="conversion-action-content">
+            <span className="conversion-action-title">
+              清空并重新试玩
+            </span>
+            <span className="conversion-action-desc">
+              重置对话历史，以新的输入变量开启新一轮沙盒体验。
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
