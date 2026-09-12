@@ -38,3 +38,4 @@ dist-ssr
 # Uncomment if you want to exclude firebase config
 # src/storage/firebase.ts
 .vercel
+.repowise

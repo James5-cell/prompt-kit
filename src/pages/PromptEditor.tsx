@@ -45,22 +45,25 @@ export default function PromptEditor() {
     };
   }, [id]);
 
+  function applyLoadedPrompt(loaded: Prompt) {
+    setTitle(loaded.title);
+    setContent(loaded.content);
+    setFavorite(loaded.favorite || false);
+    setCategory(loaded.category || '');
+    setLanguage(loaded.language || '');
+    setSummary(loaded.summary || '');
+    setSelectedTagIds(loaded.tagIds || []);
+    const loadedStatus = loaded.status || 'draft';
+    setStatus(loadedStatus === 'active' ? 'published' : loadedStatus);
+    setSampleOutput(loaded.sampleOutput || '');
+  }
+
   async function loadPrompt() {
     if (!id) return;
     setIsLoading(true);
     const loaded = await promptService.getPrompt(id);
     if (loaded) {
-      setTitle(loaded.title);
-      setContent(loaded.content);
-      setFavorite(loaded.favorite || false);
-      setCategory(loaded.category || '');
-      setLanguage(loaded.language || '');
-      setSummary(loaded.summary || '');
-      setSelectedTagIds(loaded.tagIds || []);
-      // Map legacy 'active' to 'published' for the UI selector
-      const loadedStatus = loaded.status || 'draft';
-      setStatus(loadedStatus === 'active' ? 'published' : loadedStatus);
-      setSampleOutput(loaded.sampleOutput || '');
+      applyLoadedPrompt(loaded);
     }
     setIsLoading(false);
   }
@@ -82,6 +85,25 @@ export default function PromptEditor() {
     }
   }
 
+  function buildPromptData(): Partial<Prompt> {
+    const tagNames = selectedTagIds
+      .map((tid) => allTags.find((t) => t.id === tid)?.name)
+      .filter((name): name is string => !!name);
+
+    return {
+      title: title.trim(),
+      content: content,
+      favorite: favorite,
+      category: category.trim() || '',
+      language: language.trim() || '',
+      summary: summary.trim() || '',
+      tagIds: selectedTagIds,
+      tagNames: tagNames,
+      status: status,
+      sampleOutput: sampleOutput.trim() || '',
+    };
+  }
+
   async function handleSave() {
     if (!isAdmin) {
       alert('Permission denied: admin login required');
@@ -94,31 +116,13 @@ export default function PromptEditor() {
 
     setIsSaving(true);
     try {
-      // Resolve tag names from IDs for denormalization
-      const tagNames = selectedTagIds
-        .map((tid) => allTags.find((t) => t.id === tid)?.name)
-        .filter((name): name is string => !!name);
-
-      const promptData: Partial<Prompt> = {
-        title: title.trim(),
-        content: content,
-        favorite: favorite,
-        category: category.trim() || '',
-        language: language.trim() || '',
-        summary: summary.trim() || '',
-        tagIds: selectedTagIds,
-        tagNames: tagNames,
-        status: status,
-        sampleOutput: sampleOutput.trim() || '',
-      };
-
+      const promptData = buildPromptData();
       if (id === 'new' || !id) {
         await promptService.createPrompt(promptData);
-        navigate('/prompts');
       } else {
         await promptService.updatePrompt(id, promptData);
-        navigate('/prompts');
       }
+      navigate('/prompts');
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
       console.error('Save failed:', error);

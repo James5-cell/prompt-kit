@@ -13,6 +13,27 @@ import { AnthropicProvider } from './aiProviders/anthropicProvider';
 import { GenericOpenAIProvider } from './aiProviders/genericOpenAIProvider';
 import type { IAIProvider } from './aiProviders/types';
 
+const SUPPORTED_PROVIDERS: AIProvider[] = ['gemini', 'openai', 'nvidia', 'anthropic', 'groq', 'deepseek'];
+
+function createProviderInstance(provider: AIProvider, apiKey?: string): IAIProvider | null {
+  switch (provider) {
+    case 'gemini':
+      return new GeminiProvider(apiKey);
+    case 'openai':
+      return new OpenAIProvider(apiKey);
+    case 'nvidia':
+      return new NVIDIAProvider(apiKey);
+    case 'anthropic':
+      return new AnthropicProvider(apiKey);
+    case 'groq':
+      return new GenericOpenAIProvider('groq', 'https://api.groq.com/openai/v1', 'llama3-8b-8192', apiKey);
+    case 'deepseek':
+      return new GenericOpenAIProvider('deepseek', 'https://api.deepseek.com/v1', 'deepseek-chat', apiKey);
+    default:
+      return null;
+  }
+}
+
 export class AIService {
   private providers: Map<AIProvider, IAIProvider> = new Map();
   private defaultProvider: AIProvider = 'gemini';
@@ -21,43 +42,14 @@ export class AIService {
    * Initialize providers with API keys from storage
    */
   async initialize(): Promise<void> {
-    // Load API keys from storage
-    const geminiKey = await db.getSetting('geminiApiKey');
-    const openaiKey = await db.getSetting('openaiApiKey');
-    const nvidiaKey = await db.getSetting('nvidiaApiKey');
-    const anthropicKey = await db.getSetting('anthropicApiKey');
-    const groqKey = await db.getSetting('groqApiKey');
-    const deepseekKey = await db.getSetting('deepseekApiKey');
-
-    // Initialize providers
-    if (geminiKey) {
-      const provider = new GeminiProvider(geminiKey);
-      this.providers.set('gemini', provider);
-    }
-
-    if (openaiKey) {
-      const provider = new OpenAIProvider(openaiKey);
-      this.providers.set('openai', provider);
-    }
-
-    if (nvidiaKey) {
-      const provider = new NVIDIAProvider(nvidiaKey);
-      this.providers.set('nvidia', provider);
-    }
-
-    if (anthropicKey) {
-      const provider = new AnthropicProvider(anthropicKey);
-      this.providers.set('anthropic', provider);
-    }
-
-    if (groqKey) {
-      const provider = new GenericOpenAIProvider('groq', 'https://api.groq.com/openai/v1', 'llama3-8b-8192', groqKey);
-      this.providers.set('groq', provider);
-    }
-
-    if (deepseekKey) {
-      const provider = new GenericOpenAIProvider('deepseek', 'https://api.deepseek.com/v1', 'deepseek-chat', deepseekKey);
-      this.providers.set('deepseek', provider);
+    for (const provider of SUPPORTED_PROVIDERS) {
+      const key = await db.getSetting(`${provider}ApiKey`);
+      if (key) {
+        const instance = createProviderInstance(provider, key);
+        if (instance) {
+          this.providers.set(provider, instance);
+        }
+      }
     }
 
     // Set default provider from settings or use first available
@@ -79,28 +71,9 @@ export class AIService {
     await db.saveSetting(`${provider}ApiKey`, apiKey);
 
     // Update or create provider instance
-    let providerInstance: IAIProvider;
-    switch (provider) {
-      case 'gemini':
-        providerInstance = new GeminiProvider(apiKey);
-        break;
-      case 'openai':
-        providerInstance = new OpenAIProvider(apiKey);
-        break;
-      case 'nvidia':
-        providerInstance = new NVIDIAProvider(apiKey);
-        break;
-      case 'anthropic':
-        providerInstance = new AnthropicProvider(apiKey);
-        break;
-      case 'groq':
-        providerInstance = new GenericOpenAIProvider('groq', 'https://api.groq.com/openai/v1', 'llama3-8b-8192', apiKey);
-        break;
-      case 'deepseek':
-        providerInstance = new GenericOpenAIProvider('deepseek', 'https://api.deepseek.com/v1', 'deepseek-chat', apiKey);
-        break;
-      default:
-        throw new Error(`Unknown provider: ${provider}`);
+    const providerInstance = createProviderInstance(provider, apiKey);
+    if (!providerInstance) {
+      throw new Error(`Unknown provider: ${provider}`);
     }
 
     this.providers.set(provider, providerInstance);
@@ -140,9 +113,7 @@ export class AIService {
    */
   async setDefaultProvider(provider: AIProvider): Promise<void> {
     if (!this.providers.has(provider)) {
-      throw new Error(
-        `Provider ${provider} is not configured. Please set API key first.`
-      );
+      throw new Error(`Provider ${provider} is not configured`);
     }
     this.defaultProvider = provider;
     await db.saveSetting('defaultAIProvider', provider);
@@ -153,6 +124,27 @@ export class AIService {
    */
   getDefaultProvider(): AIProvider {
     return this.defaultProvider;
+  }
+
+  /**
+   * Get all configured providers
+   */
+  getConfiguredProviders(): AIProvider[] {
+    return Array.from(this.providers.keys());
+  }
+
+  /**
+   * Check if a provider is configured
+   */
+  isProviderConfigured(provider: AIProvider): boolean {
+    return this.providers.has(provider);
+  }
+
+  /**
+   * Get available providers (those with API keys configured)
+   */
+  getAvailableProviders(): AIProvider[] {
+    return Array.from(this.providers.keys());
   }
 
   /**
@@ -177,13 +169,6 @@ export class AIService {
   }
 
   /**
-   * Get available providers (those with API keys configured)
-   */
-  getAvailableProviders(): AIProvider[] {
-    return Array.from(this.providers.keys());
-  }
-
-  /**
    * Get provider instance
    */
   getProvider(provider: AIProvider): IAIProvider | undefined {
@@ -197,28 +182,9 @@ export class AIService {
     provider: AIProvider,
     apiKey: string
   ): Promise<boolean> {
-    let providerInstance: IAIProvider;
-    switch (provider) {
-      case 'gemini':
-        providerInstance = new GeminiProvider();
-        break;
-      case 'openai':
-        providerInstance = new OpenAIProvider();
-        break;
-      case 'nvidia':
-        providerInstance = new NVIDIAProvider();
-        break;
-      case 'anthropic':
-        providerInstance = new AnthropicProvider();
-        break;
-      case 'groq':
-        providerInstance = new GenericOpenAIProvider('groq', 'https://api.groq.com/openai/v1', 'llama3-8b-8192');
-        break;
-      case 'deepseek':
-        providerInstance = new GenericOpenAIProvider('deepseek', 'https://api.deepseek.com/v1', 'deepseek-chat');
-        break;
-      default:
-        return false;
+    const providerInstance = createProviderInstance(provider);
+    if (!providerInstance) {
+      return false;
     }
 
     return providerInstance.testApiKey(apiKey);

@@ -26,6 +26,8 @@ export const SUPPORTED_MODELS: AIModelConfig[] = [
   { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai' },
   
   // NVIDIA Models
+  { id: 'meta/llama-3.2-11b-vision-instruct', name: 'Llama 3.2 11B Vision Instruct', provider: 'nvidia' },
+  { id: 'meta/llama-3.2-90b-vision-instruct', name: 'Llama 3.2 90B Vision Instruct', provider: 'nvidia' },
   { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct', provider: 'nvidia' },
   { id: 'meta/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct', provider: 'nvidia' },
   { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct', provider: 'nvidia' },

@@ -52,21 +52,22 @@ export default function Settings() {
   async function loadSettings() {
     try {
       // Load API keys
-      const geminiKey = await db.getSetting('geminiApiKey');
-      const openaiKey = await db.getSetting('openaiApiKey');
-      const nvidiaKey = await db.getSetting('nvidiaApiKey');
-      const anthropicKey = await db.getSetting('anthropicApiKey');
-      const groqKey = await db.getSetting('groqApiKey');
-      const deepseekKey = await db.getSetting('deepseekApiKey');
+      const keySetters: Array<{ key: string; setter: (v: string) => void }> = [
+        { key: 'geminiApiKey', setter: setGeminiApiKey },
+        { key: 'openaiApiKey', setter: setOpenaiApiKey },
+        { key: 'nvidiaApiKey', setter: setNvidiaApiKey },
+        { key: 'anthropicApiKey', setter: setAnthropicApiKey },
+        { key: 'groqApiKey', setter: setGroqApiKey },
+        { key: 'deepseekApiKey', setter: setDeepseekApiKey },
+      ];
+
+      for (const { key, setter } of keySetters) {
+        const val = await db.getSetting(key);
+        if (val) setter(val);
+      }
+
       const savedDefaultProvider = await db.getSetting('defaultAIProvider');
       const savedDefaultModel = await db.getSetting('defaultAIModel');
-
-      if (geminiKey) setGeminiApiKey(geminiKey);
-      if (openaiKey) setOpenaiApiKey(openaiKey);
-      if (nvidiaKey) setNvidiaApiKey(nvidiaKey);
-      if (anthropicKey) setAnthropicApiKey(anthropicKey);
-      if (groqKey) setGroqApiKey(groqKey);
-      if (deepseekKey) setDeepseekApiKey(deepseekKey);
       
       const initialProvider = (savedDefaultProvider as AIProvider) || 'gemini';
       setDefaultProvider(initialProvider);

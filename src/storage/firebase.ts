@@ -48,10 +48,6 @@ let auth: Auth | null = null;
 
 let isFirebaseEnabled = false;
 
-export function getFirestoreDb() {
-  return firestore;
-}
-
 export function initFirebase(config?: typeof firebaseConfig): void {
   try {
     const configToUse = config || firebaseConfig;

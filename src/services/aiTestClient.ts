@@ -145,23 +145,3 @@ export async function executeChatStream(
 
   return parseSSEResponse(res, input.provider || '', input.model || '', onChunk);
 }
-
-export async function executePrompt(
-  input: {
-    prompt: string;
-    provider: string;
-    model: string;
-    apiKey: string;
-  },
-  onChunk?: (text: string) => void
-): Promise<PromptRunResult> {
-  return executeChatStream(
-    {
-      messages: [{ role: 'user', content: input.prompt }],
-      provider: input.provider,
-      model: input.model,
-      apiKey: input.apiKey,
-    },
-    onChunk
-  );
-}

@@ -45,6 +45,8 @@ export const DEFAULT_AI_CONFIG: AIProviderConfig[] = [
     id: 'nvidia',
     name: 'NVIDIA Build',
     models: [
+      { id: 'meta/llama-3.2-11b-vision-instruct', name: 'Llama 3.2 11B Vision Instruct' },
+      { id: 'meta/llama-3.2-90b-vision-instruct', name: 'Llama 3.2 90B Vision Instruct' },
       { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct' },
       { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct' },
       { id: 'meta/llama-3.1-8b-instruct', name: 'Llama 3.1 8B Instruct' },

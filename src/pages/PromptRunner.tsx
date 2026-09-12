@@ -589,7 +589,7 @@ function PlaygroundStatusBar({
         <div className="hud-engine-capsule">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span className="text-zinc-300">
-            {hasAnyApiKey ? `${provider} (${model})` : 'Shared NIM (Llama 3.1 8B)'}
+            {hasAnyApiKey ? `${provider} (${model})` : 'Shared NIM (Llama 3.2 11B)'}
           </span>
         </div>
       </div>

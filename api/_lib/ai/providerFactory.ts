@@ -44,10 +44,11 @@ export function resolveAIModel({
       return openai(model);
     }
     case 'nvidia': {
-      const finalApiKey = apiKey || process.env.NVIDIA_API_KEY;
-      if (!finalApiKey) {
+      const rawApiKey = apiKey || process.env.NVIDIA_API_KEY_1 || process.env.NVIDIA_API_KEY;
+      if (!rawApiKey) {
         throw new Error('Missing env key: API key is required for NVIDIA');
       }
+      const finalApiKey = rawApiKey.replace(/^['"]|['"]$/g, '').trim();
       const nvidiaOpenAI = createOpenAI({
         baseURL: 'https://integrate.api.nvidia.com/v1',
         apiKey: finalApiKey,
