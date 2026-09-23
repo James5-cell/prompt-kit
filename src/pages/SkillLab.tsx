@@ -1,5 +1,6 @@
 import { GraduationCap, ExternalLink, Terminal, ArrowRight } from 'lucide-react';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 import './Settings.css';
 
 export default function SkillLab() {
@@ -7,6 +8,11 @@ export default function SkillLab() {
 
   return (
     <div className="settings-page animate-fade-in">
+      <SEOHead
+        title="Skill Lab — 提示詞工程實驗室"
+        description="Master AI Workflow Engineering: 實用指南、模板與進階提示詞設計架構。"
+        canonical="https://www.205011.xyz/skill-lab"
+      />
       <h1>Skill Lab</h1>
       
       <div className="settings-section" style={{ display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid rgba(0, 229, 255, 0.15)' }}>

@@ -6,6 +6,7 @@ import type { AIProvider } from '../services/aiProviders/types';
 import { aiModelRegistry } from '../services/aiModelRegistry';
 import type { AIModelConfig } from '../config/aiModels';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 import './Settings.css';
 
 export default function Settings() {
@@ -284,6 +285,11 @@ export default function Settings() {
 
   return (
     <div className="settings-page">
+      <SEOHead
+        title="Settings — 系統設定"
+        description="系統偏好設定、AI 模型 Provider 密鑰配置與本地儲存管理。"
+        canonical="https://www.205011.xyz/settings"
+      />
       <h1>Settings</h1>
 
       <div className="settings-section">

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { aiModelRegistry } from '../services/aiModelRegistry';
 import { aiConfigService } from '../services/aiConfigService';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 import { SUPPORTED_MODELS } from '../config/aiModels';
 import { exportAndDownload } from '../utils/export';
 import { importFromJSON, importFromCSV, readFileAsText } from '../utils/import';
@@ -262,6 +263,11 @@ export default function Admin() {
 
   return (
     <div className="admin-page">
+      <SEOHead
+        title="Admin Console — 管理後台"
+        description="Prompt Kit 平台管理後台，系統健康度監控與權限配置。"
+        canonical="https://www.205011.xyz/admin"
+      />
       <h1>Admin Panel</h1>
       
       {statusMessage && (

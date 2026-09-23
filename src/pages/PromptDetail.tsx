@@ -98,6 +98,7 @@ export default function PromptDetail() {
         description={prompt.summary || prompt.content.slice(0, 160)}
         canonical={`https://www.205011.xyz/p/${prompt.id}`}
         ogType="article"
+        ogImage="https://www.205011.xyz/og-image.png"
         jsonLd={{
           '@context': 'https://schema.org',
           '@graph': [

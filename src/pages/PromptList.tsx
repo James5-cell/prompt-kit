@@ -284,6 +284,8 @@ export default function PromptList() {
       <SEOHead
         title="Public Prompt Library — Prompt Kit"
         description="Explore, search, filter, and execute high-quality, production-tested AI prompt templates for ChatGPT, Claude, Gemini, and LLM workflows."
+        canonical="https://www.205011.xyz/prompts"
+        ogImage="https://www.205011.xyz/og-image.png"
         jsonLd={{
           '@context': 'https://schema.org',
           '@graph': [

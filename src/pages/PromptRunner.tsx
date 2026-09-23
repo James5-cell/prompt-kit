@@ -15,6 +15,7 @@ import type { AIProvider } from '../services/aiProviders/types';
 import { executeChatStream, type ChatMessageItem } from '../services/aiTestClient';
 import { useNoIndex } from '../hooks/useNoIndex';
 import { useAuth } from '../auth/AuthContext';
+import SEOHead from '../components/SEOHead';
 import './PromptRunner.css';
 
 export interface ChatMessage {
@@ -324,12 +325,12 @@ export default function PromptRunner() {
 
   return (
     <>
-      <title>{prompt.title} | Prompt Runner</title>
-      <meta name="description" content={`Evaluate and run the AI prompt: ${prompt.title}. Preview: ${prompt.content.substring(0, 100)}...`} />
-      <link rel="canonical" href={`https://yourdomain.com/prompts/${id}`} />
-      <meta property="og:title" content={`${prompt.title} - AI Prompt Runner`} />
-      <meta property="og:description" content="AI Prompt Evaluation and Execution Environment" />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <SEOHead
+        title={`${prompt.title} — Prompt Runner`}
+        description={`Evaluate and run the AI prompt: ${prompt.title}. Preview: ${prompt.content.substring(0, 100)}...`}
+        canonical={`https://www.205011.xyz/prompts/${id}/run`}
+        jsonLd={jsonLd}
+      />
 
       <main className={`max-w-4xl mx-auto p-4 pb-20 md:p-8 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
         {!isFocusMode && (

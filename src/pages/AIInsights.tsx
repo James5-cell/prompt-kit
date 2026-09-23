@@ -1,5 +1,6 @@
 import { Sparkles, ExternalLink, Terminal, ArrowRight } from 'lucide-react';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 import './Settings.css';
 
 export default function AIInsights() {
@@ -7,6 +8,11 @@ export default function AIInsights() {
 
   return (
     <div className="settings-page animate-fade-in">
+      <SEOHead
+        title="AI Insights — 提示詞洞察與趨勢分析"
+        description="AI Research, Essays & Library: 深度探討人工智慧、Agent 架構設計與精選研究筆記。"
+        canonical="https://www.205011.xyz/ai-insights"
+      />
       <h1>AI Insights</h1>
       
       <div className="settings-section" style={{ display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid rgba(0, 255, 135, 0.15)' }}>

@@ -5,6 +5,7 @@ import { promptService } from '../services/promptService';
 import { tagService } from '../services/tagService';
 import { useAuth } from '../auth/AuthContext';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 import './PromptEditor.css';
 
 export default function PromptEditor() {
@@ -138,6 +139,11 @@ export default function PromptEditor() {
 
   return (
     <div className="prompt-editor">
+      <SEOHead
+        title={id === 'new' ? 'New Prompt — Prompt Editor' : 'Edit Prompt — Prompt Editor'}
+        description="專業 Prompt Engineering 編輯器，支援多變數模板、格式校驗與版本管理。"
+        canonical={id === 'new' ? 'https://www.205011.xyz/prompts/new' : `https://www.205011.xyz/prompts/${id}`}
+      />
       <div className="editor-header">
         <h1>{id === 'new' ? 'New Prompt' : 'Edit Prompt'}</h1>
         <div className="header-actions">

@@ -33,6 +33,7 @@ export default function About() {
         title="About & E-E-A-T Standards — Prompt Kit"
         description="Prompt Kit platform mission, creator credentials (postsoma-2050), data privacy compliance, machine knowledge feeds (llms.txt), and academic citation guidelines."
         canonical="https://www.205011.xyz/about"
+        ogImage="https://www.205011.xyz/og-image.png"
         jsonLd={{
           '@context': 'https://schema.org',
           '@graph': [

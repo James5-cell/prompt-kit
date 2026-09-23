@@ -1,5 +1,6 @@
 import { Code2, ExternalLink, Terminal, ArrowRight } from 'lucide-react';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 import './Settings.css';
 
 export default function DevLibrary() {
@@ -7,6 +8,11 @@ export default function DevLibrary() {
 
   return (
     <div className="settings-page animate-fade-in">
+      <SEOHead
+        title="Dev Library — 開發者代碼與工具庫"
+        description="Bilingual Dev Resources: 雙語編程文檔、技術深度解析與架構模式。"
+        canonical="https://www.205011.xyz/dev-library"
+      />
       <h1>DevLibrary</h1>
       
       <div className="settings-section" style={{ display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid rgba(191, 90, 242, 0.15)' }}>

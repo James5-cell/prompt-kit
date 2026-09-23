@@ -18,6 +18,7 @@ import { promptService, isPublishedStatus } from '../services/promptService';
 import { runService } from '../services/runService';
 import { useAuth } from '../auth/AuthContext';
 import { useNoIndex } from '../hooks/useNoIndex';
+import SEOHead from '../components/SEOHead';
 
 import './Dashboard.css';
 
@@ -172,6 +173,11 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard animate-fade-in">
+      <SEOHead
+        title="Dashboard — 工作台"
+        description="Prompt Kit 總覽儀表板：提示詞資產統計、分類概況與快速工作流。"
+        canonical="https://www.205011.xyz/dashboard"
+      />
 
       {/* ── Hero Banner ──────────────────────────────────────── */}
       <div className="dashboard-hero">
