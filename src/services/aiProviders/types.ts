@@ -13,13 +13,6 @@ export interface AIProviderResponse {
   };
 }
 
-export interface AIProviderConfig {
-  apiKey: string;
-  model?: string;
-  baseUrl?: string;
-  [key: string]: any;
-}
-
 export interface AIProviderOptions {
   temperature?: number;
   maxTokens?: number;

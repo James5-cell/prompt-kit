@@ -28,8 +28,8 @@ export default function Layout({ children }: LayoutProps) {
 
   // ── Main nav: RI line = inactive, RI fill = active ─────────────────────
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard',      icon: 'ri:dashboard-3-line',  iconActive: 'ri:dashboard-3-fill'  },
-    { path: '/prompts',   label: 'Prompt Library', icon: 'ri:book-shelf-line',   iconActive: 'ri:book-shelf-fill'   },
+    { path: '/dashboard', label: 'Dashboard',      badge: '精选', icon: 'ri:dashboard-3-line',  iconActive: 'ri:dashboard-3-fill'  },
+    { path: '/prompts',   label: 'Prompt Library', badge: '全量', icon: 'ri:book-shelf-line',   iconActive: 'ri:book-shelf-fill'   },
     { path: '/about',     label: 'About & E-E-A-T', icon: 'ri:information-line', iconActive: 'ri:information-fill' },
     { path: '/settings',  label: 'Settings',        icon: 'ri:settings-4-line',   iconActive: 'ri:settings-4-fill'   },
   ];
@@ -119,6 +119,11 @@ export default function Layout({ children }: LayoutProps) {
                   />
                 </span>
                 <span className="nav-label">{item.label}</span>
+                {item.badge && (
+                  <span className={`nav-item-badge ${item.path === '/dashboard' ? 'badge-featured' : 'badge-all'}`}>
+                    {item.badge}
+                  </span>
+                )}
                 {isActive && (
                   <motion.span 
                     layoutId="active-nav-indicator" 

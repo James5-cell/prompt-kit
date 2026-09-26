@@ -198,7 +198,7 @@ export class PromptService {
         const promptTagNames = (prompt.tagNames ?? []).map((t) => t.toLowerCase());
         const promptTagIds = prompt.tagIds ?? [];
         const hasMatchingTag = filters.tags.some(
-          (filterTag) =>
+          (filterTag: string) =>
             promptTagIds.includes(filterTag) ||
             promptTagNames.includes(filterTag.toLowerCase())
         );

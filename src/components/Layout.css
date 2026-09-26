@@ -199,6 +199,41 @@
   font-size: 13px;
 }
 
+.nav-item-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.nav-item-badge.badge-featured {
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  color: var(--primary);
+}
+
+.nav-item-badge.badge-all {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-faint);
+}
+
+.nav-item.active .nav-item-badge.badge-featured {
+  background: rgba(0, 229, 255, 0.16);
+  border-color: rgba(0, 229, 255, 0.4);
+  color: #fff;
+}
+
+.nav-item.active .nav-item-badge.badge-all {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+}
+
 /* Explore Nav Group */
 .nav-group {
   margin-top: 16px;

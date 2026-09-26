@@ -110,15 +110,6 @@ export interface Run {
   abTestGroup?: string; // A/B 测试组
 }
 
-// 用户
-export interface User {
-  id: string;
-  name: string;
-  email?: string;
-  avatar?: string;
-  role: 'owner' | 'editor' | 'viewer';
-}
-
 // 智能视图（保存的检索组合）
 export interface SmartView {
   id: string;
@@ -143,38 +134,8 @@ export interface SearchFilters {
   visibility?: ('private' | 'team' | 'public')[];
 }
 
-// A/B 测试配置
-export interface ABTest {
-  id: string;
-  name: string;
-  promptId: string;
-  variants: ABTestVariant[];
-  createdAt: number;
-  status: 'running' | 'completed' | 'paused';
-  winner?: string; // 获胜变体 ID
-}
-
-export interface ABTestVariant {
-  id: string;
-  name: string;
-  promptId: string; // 可能是原 Prompt 的变体
-  runs: string[]; // Run IDs
-  averageRating?: number;
-  successRate?: number;
-}
-
 // 导出格式
 export type ExportFormat = 'json' | 'csv' | 'markdown';
-
-// InputSlot 类型（用于解析工具）
-export interface InputSlot {
-  id: string;
-  name: string;
-  type: 'text' | 'number' | 'boolean';
-  required?: boolean;
-  defaultValue?: string;
-  hint?: string;
-}
 
 // 分享链接类型
 export type ShareLinkType = 'readonly' | 'reusable' | 'forkable';

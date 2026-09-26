@@ -31,6 +31,7 @@ import './PromptList.css';
 // ── Category metadata: iconName (Iconify RI) + label + accent color ────────────
 const CATEGORY_MAP: Record<string, { label: string; iconName: string; color: string; class: string }> = {
   dev:         { label: 'Development',  iconName: 'ri:terminal-box-line',  color: 'var(--color-dev)',         class: 'theme-dev' },
+  development: { label: 'Development',  iconName: 'ri:terminal-box-line',  color: 'var(--color-dev)',         class: 'theme-dev' },
   writing:     { label: 'Writing',      iconName: 'ri:quill-pen-line',      color: 'var(--color-writing)',     class: 'theme-writing' },
   finance:     { label: 'Finance',      iconName: 'ri:line-chart-line',     color: 'var(--color-finance)',     class: 'theme-finance' },
   learning:    { label: 'Learning',     iconName: 'ri:book-read-line',      color: 'var(--color-learning)',    class: 'theme-learning' },
@@ -51,10 +52,18 @@ export default function PromptList() {
   const { isAdmin, userEmail } = useAuth();
 
   const [prompts, setPrompts]               = useState<Prompt[]>([]);
-  const [searchQuery, setSearchQuery]       = useState('');
   const [allTags, setAllTags]               = useState<Tag[]>([]);       // for color metadata only
   const [selectedAdminStatus, setSelectedAdminStatus] = useState<PromptStatus | 'all'>('all');
   const [searchParams, setSearchParams]     = useSearchParams();
+  const urlQ = searchParams.get('q') || '';
+  const [searchQuery, setSearchQuery]       = useState(urlQ);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null && q !== searchQuery) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
 
   const selectedCategory = searchParams.get('category');
   const activeTagNames = useMemo(() => {
@@ -129,10 +138,16 @@ export default function PromptList() {
       }
     }
 
-    // Category filter — case-insensitive
+    // Category filter — case-insensitive with dev/development alias
     if (selectedCategory) {
       const catLower = selectedCategory.toLowerCase();
-      result = result.filter(p => (p.category ?? '').toLowerCase() === catLower);
+      result = result.filter(p => {
+        const pCat = (p.category ?? '').toLowerCase();
+        if (catLower === 'dev' || catLower === 'development') {
+          return pCat === 'dev' || pCat === 'development';
+        }
+        return pCat === catLower;
+      });
     }
 
     // Text search (title, content, tags, category)
@@ -240,7 +255,14 @@ export default function PromptList() {
       if (selectedAdminStatus === 'published' && p.status !== 'published' && p.status !== 'active') return false;
       if (selectedAdminStatus === 'private'   && p.status !== 'private')   return false;
     }
-    if (selectedCategory && (p.category ?? '').toLowerCase() !== selectedCategory.toLowerCase()) return false;
+    if (selectedCategory) {
+      const pCat = (p.category ?? '').toLowerCase();
+      const sCat = selectedCategory.toLowerCase();
+      const match = (sCat === 'dev' || sCat === 'development')
+        ? (pCat === 'dev' || pCat === 'development')
+        : pCat === sCat;
+      if (!match) return false;
+    }
     return true;
   });
 
@@ -387,8 +409,11 @@ export default function PromptList() {
                   <span className="cat-btn-label">All Prompts</span>
                 </button>
                 {uniqueCategories.sort().map(cat => {
-                  const meta    = getCategoryMeta(cat);
-                  const isActive = selectedCategory === cat;
+                  const meta = getCategoryMeta(cat);
+                  const catNorm = cat.toLowerCase();
+                  const selNorm = selectedCategory?.toLowerCase();
+                  const isActive = selNorm === catNorm ||
+                    ((selNorm === 'dev' || selNorm === 'development') && (catNorm === 'dev' || catNorm === 'development'));
                   return (
                     <button
                       key={cat}
