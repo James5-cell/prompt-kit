@@ -1,0 +1,108 @@
+.pk-mascot-dock {
+  --pk-rest-offset: 81px;
+  --pk-peek-offset: 67px;
+  --pk-hidden-offset: 160px;
+  position: fixed;
+  z-index: 40;
+  width: 118px;
+  height: 129px;
+  pointer-events: none;
+  user-select: none;
+  transform: translate3d(calc(-50% + var(--pk-x, 0vw)), var(--pk-rest-offset), 0);
+  transition: transform var(--pk-transition-ms, 700ms) cubic-bezier(.22,.72,.22,1);
+  will-change: transform;
+}
+.pk-mascot-dock[data-mode="peek"],
+.pk-mascot-dock[data-mode="alert"] {
+  transform: translate3d(calc(-50% + var(--pk-x, 0vw)), var(--pk-peek-offset), 0);
+}
+.pk-mascot-dock[data-mode="companion"],
+.pk-mascot-dock[data-mode="shock"],
+.pk-mascot-dock[data-mode="shy"] {
+  transform: translate3d(calc(-50% + var(--pk-x, 0vw)), 0, 0);
+}
+.pk-mascot-dock[data-mode="shy_hide"],
+.pk-mascot-dock[data-mode="shy_wait"],
+.pk-mascot-dock[data-mode="guarded"] {
+  transform: translate3d(calc(-50% + var(--pk-x, 0vw)), var(--pk-hidden-offset), 0);
+}
+.pk-mascot-button {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pk-mascot-dock[data-mode="rest"] .pk-mascot-button,
+.pk-mascot-dock[data-mode="sleep"] .pk-mascot-button { height: 70%; }
+.pk-mascot-button:focus-visible { outline: 2px solid #8edbc2; outline-offset: 2px; border-radius: 50%; }
+.pk-mascot-dock[data-mode="shy_hide"] .pk-mascot-button,
+.pk-mascot-dock[data-mode="shy_wait"] .pk-mascot-button,
+.pk-mascot-dock[data-mode="guarded"] .pk-mascot-button { pointer-events: none; }
+.pk-mascot-stage,
+.pk-mascot-core { position: absolute; inset: 0; display: block; }
+.pk-mascot-stage { filter: drop-shadow(0 10px 18px rgba(0,0,0,.22)); }
+.pk-mascot-core { transform-origin: 50% 88%; animation: pk-mascot-breathe 3.4s ease-in-out infinite; }
+.pk-mascot-plate { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+.pk-mascot-sprout { position: absolute; z-index: 2; display: block; animation: pk-mascot-sprout 3.4s ease-in-out infinite; }
+.pk-mascot-sprout img,
+.pk-mascot-bubble img,
+.pk-mascot-sparkles img { display: block; width: 100%; height: auto; object-fit: contain; }
+.pk-mascot-bubble,
+.pk-mascot-sparkles { position: absolute; display: block; }
+.pk-mascot-eyes { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; overflow: visible; }
+.pk-mascot-eye { animation: pk-mascot-blink 5.2s ease-in-out infinite; }
+.pk-mascot-eye:nth-child(2) { animation-delay: 120ms; }
+.pk-mascot-eye-halo { fill: #f9f8f5; stroke: #242423; stroke-width: 13; }
+.pk-mascot-eye-moon { fill: #111110; }
+.pk-mascot-cheek { position: absolute; z-index: 7; top: 52%; width: 13%; height: 5%; border-radius: 50%; background: #db8b83; filter: blur(2px); opacity: 0; }
+.pk-mascot-cheek-left { left: 23%; }
+.pk-mascot-cheek-right { right: 23%; }
+.pk-mascot-dock[data-theme="light"] .pk-mascot-eye-halo { fill: #242320; stroke: #fbfaf7; }
+.pk-mascot-dock[data-theme="light"] .pk-mascot-eye-moon { fill: #fffdf9; }
+.pk-mascot-dock[data-mode="shy"] .pk-mascot-cheek { animation: pk-mascot-blush var(--pk-action-ms, 980ms) ease-in-out both; }
+.pk-mascot-dock[data-behavior="hover_wiggle"] .pk-mascot-stage { animation: pk-mascot-wiggle 560ms ease-in-out both; }
+.pk-mascot-dock[data-behavior="click_react"] .pk-mascot-stage { animation: pk-mascot-hop 760ms cubic-bezier(.2,.8,.22,1) both; }
+.pk-mascot-dock[data-behavior="click_react"] .pk-mascot-bubble[data-slot-click="prompt_pulse"] { animation: pk-prompt-pulse 760ms ease-in-out both; }
+.pk-mascot-dock[data-behavior="flinch"] .pk-mascot-stage { animation: pk-mascot-flinch 480ms ease-in-out both; }
+.pk-mascot-dock[data-behavior="flinch"] .pk-mascot-bubble[data-slot-shock="rattle"] { animation: pk-bubble-rattle 480ms ease-in-out both; }
+.pk-mascot-dock[data-behavior="blush"] .pk-mascot-stage { animation: pk-mascot-shy 980ms ease-in-out both; }
+.pk-mascot-dock[data-behavior="peek_curious"] .pk-mascot-stage { animation: pk-mascot-curious var(--pk-action-ms, 1800ms) ease-in-out both; }
+.pk-mascot-dock[data-behavior="wander_slide"] .pk-mascot-stage { animation: pk-mascot-waddle 900ms ease-in-out infinite; }
+.pk-mascot-dock[data-behavior="subtle_tilt"] .pk-mascot-stage { animation: pk-mascot-tilt var(--pk-action-ms, 1200ms) ease-in-out both; }
+.pk-mascot-dock[data-behavior="sprout_sway"] .pk-mascot-sprout { animation: pk-mascot-sprout-long var(--pk-action-ms, 3500ms) ease-in-out both; }
+.pk-mascot-dock[data-behavior="draft_spark"] .pk-mascot-sparkles img[data-slot-antic="draft_spark"],
+.pk-mascot-dock[data-behavior="draft_spark"] .pk-mascot-sparkles[data-slot-antic="draft_spark"] img { animation: pk-draft-spark var(--pk-action-ms, 1400ms) ease-in-out both; }
+
+@keyframes pk-mascot-breathe { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(.994,1.012); } }
+@keyframes pk-mascot-blink { 0%,43%,47%,100% { transform: scaleY(1); } 45% { transform: scaleY(.08); } }
+@keyframes pk-mascot-sprout { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes pk-mascot-sprout-long { 0%,100% { transform: rotate(-6deg); } 30% { transform: rotate(6deg); } 65% { transform: rotate(-4deg); } }
+@keyframes pk-mascot-wiggle { 0%,100% { transform: rotate(0); } 24% { transform: rotate(-25deg); } 48% { transform: rotate(10deg); } 70% { transform: rotate(-9deg); } 86% { transform: rotate(4deg); } }
+@keyframes pk-mascot-hop { 0%,100% { transform: translateY(0) scale(1); } 28% { transform: translateY(-9px) scale(.97,1.04); } 55% { transform: translateY(0) scale(1.03,.96); } 75% { transform: translateY(-2px); } }
+@keyframes pk-mascot-flinch { 0%,100% { transform: scale(1) rotate(0); } 25% { transform: scale(1.07,.88) rotate(-5deg); } 60% { transform: scale(.94,1.06) rotate(5deg); } }
+@keyframes pk-mascot-shy { 0%,100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-5deg) scale(.98,1.02); } 65% { transform: rotate(4deg) scale(1.02,.98); } }
+@keyframes pk-mascot-curious { 0%,100% { transform: rotate(0); } 35%,65% { transform: rotate(3deg); } }
+@keyframes pk-mascot-waddle { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes pk-mascot-tilt { 0%,100% { transform: rotate(0); } 45% { transform: rotate(-7deg); } 70% { transform: rotate(4deg); } }
+@keyframes pk-mascot-blush { 0%,100% { opacity: 0; } 28%,83% { opacity: .82; } }
+@keyframes pk-prompt-pulse { 0%,100% { transform: rotate(4deg) scale(1); } 35% { transform: rotate(-1deg) scale(1.08); } 68% { transform: rotate(6deg) scale(.97); } }
+@keyframes pk-bubble-rattle { 0%,100% { transform: rotate(4deg); } 32% { transform: rotate(-4deg) translateX(-2px); } 68% { transform: rotate(9deg) translateX(2px); } }
+@keyframes pk-draft-spark { 0%,100% { transform: scale(.88) rotate(0); opacity: .58; filter: drop-shadow(0 0 0 transparent); } 35% { transform: scale(1.08) rotate(4deg); opacity: 1; filter: drop-shadow(0 0 7px rgba(0,229,255,.48)); } 70% { transform: scale(.98) rotate(-3deg); opacity: .86; } }
+
+@media (min-width: 768px) {
+  .pk-mascot-dock { --pk-rest-offset: 91px; --pk-peek-offset: 77px; --pk-hidden-offset: 176px; width: 132px; height: 145px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pk-mascot-dock, .pk-mascot-stage, .pk-mascot-core, .pk-mascot-sprout,
+  .pk-mascot-bubble, .pk-mascot-sparkles, .pk-mascot-eye, .pk-mascot-cheek {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -1,5 +1,7 @@
+import { promptSearchScore } from '../utils/promptSearch';
+import { canTryPrompt, getUsageMode, USAGE_LABELS } from '../utils/promptUsage';
 import { useEffect, useState, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon as RiIcon } from '@iconify/react';
 import { 
   Eye, 
@@ -49,21 +51,28 @@ const getCategoryMeta = (cat: string) => {
 const TAG_SHOW_LIMIT = 10;
 
 export default function PromptList() {
+  const navigate = useNavigate();
+  const [pendingTrialId, setPendingTrialId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { isAdmin, userEmail } = useAuth();
 
   const [prompts, setPrompts]               = useState<Prompt[]>([]);
   const [allTags, setAllTags]               = useState<Tag[]>([]);       // for color metadata only
   const [selectedAdminStatus, setSelectedAdminStatus] = useState<PromptStatus | 'all'>('all');
   const [searchParams, setSearchParams]     = useSearchParams();
-  const urlQ = searchParams.get('q') || '';
-  const [searchQuery, setSearchQuery]       = useState(urlQ);
-
-  useEffect(() => {
-    const q = searchParams.get('q');
-    if (q !== null && q !== searchQuery) {
-      setSearchQuery(q);
-    }
-  }, [searchParams]);
+  const searchQuery = searchParams.get('q') || '';
+  const selectedUsage = searchParams.get('usage') || 'all';
+  const setSearchQuery = (query: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (query) next.set('q', query); else next.delete('q');
+    setSearchParams(next, { replace: true });
+  };
+  const setSelectedUsage = (mode: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (mode === 'all') next.delete('usage'); else next.set('usage', mode);
+    setSearchParams(next, { replace: true });
+  };
 
   const selectedCategory = searchParams.get('category');
   const activeTagNames = useMemo(() => {
@@ -111,7 +120,9 @@ export default function PromptList() {
     const unsubscribe = promptService.subscribeToPrompts((updated) => {
       console.log(`[Update] Received ${updated.length} prompts`);
       setPrompts(updated);
-    });
+      setIsLoading(false);
+      setLoadError('');
+    }, () => { setIsLoading(false); setLoadError('实时连接不可用，当前可能显示缓存内容。请刷新重试。'); });
     const unsubscribeTags = tagService.subscribeToTags((tags) => {
       setAllTags(tags.filter(t => t.isActive));
     });
@@ -127,7 +138,7 @@ export default function PromptList() {
 
     // Visibility: non-admins only see published prompts
     if (!isAdmin) {
-      result = result.filter(p => isPublishedStatus(p.status));
+      result = result.filter(p => !p.isDeleted && isPublishedStatus(p.status) && p.visibility !== 'private');
     } else if (selectedAdminStatus !== 'all') {
       if (selectedAdminStatus === 'draft') {
         result = result.filter(p => !p.status || p.status === 'draft');
@@ -137,6 +148,8 @@ export default function PromptList() {
         result = result.filter(p => p.status === selectedAdminStatus);
       }
     }
+
+    if (selectedUsage !== 'all') result = result.filter(p => getUsageMode(p) === selectedUsage);
 
     // Category filter — case-insensitive with dev/development alias
     if (selectedCategory) {
@@ -150,16 +163,7 @@ export default function PromptList() {
       });
     }
 
-    // Text search (title, content, tags, category)
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(p =>
-        p.title.toLowerCase().includes(q) ||
-        p.content.toLowerCase().includes(q) ||
-        (p.tagNames ?? []).some(tag => tag.toLowerCase().includes(q)) ||
-        (p.category ?? '').toLowerCase().includes(q)
-      );
-    }
+    result = result.filter(p => promptSearchScore(p, searchQuery) > 0);
 
     // Tag filter — OR logic, case-insensitive
     if (activeTagNames.length > 0) {
@@ -177,13 +181,17 @@ export default function PromptList() {
 
     // Sort: favourites first → newest first
     result.sort((a, b) => {
+      if (searchQuery.trim()) {
+        const relevance = promptSearchScore(b, searchQuery) - promptSearchScore(a, searchQuery);
+        if (relevance) return relevance;
+      }
       if (a.favorite && !b.favorite) return -1;
       if (!a.favorite && b.favorite) return 1;
       return b.createdAt - a.createdAt;
     });
 
     return result;
-  }, [prompts, searchQuery, activeTagNames, selectedCategory, selectedAdminStatus, isAdmin, allTags]);
+  }, [prompts, searchQuery, activeTagNames, selectedCategory, selectedAdminStatus, selectedUsage, isAdmin, allTags]);
 
   // ── Actions ────────────────────────────────────────────────
   async function deletePrompt(id: string) {
@@ -298,7 +306,7 @@ export default function PromptList() {
     : allAggregatedTags.slice(0, TAG_SHOW_LIMIT);
   const hiddenTagCount = allAggregatedTags.length - TAG_SHOW_LIMIT;
 
-  const isFilterActive = !!(searchQuery || activeTagNames.length > 0 || selectedCategory);
+  const isFilterActive = !!(searchQuery || activeTagNames.length > 0 || selectedCategory || selectedUsage !== 'all');
 
   // ── Render ─────────────────────────────────────────────────
   return (
@@ -344,8 +352,8 @@ export default function PromptList() {
       {/* ── Row 1: Title + Action Buttons ──────────────────────── */}
       <div className="page-header">
         <div>
-          <h1>Prompt Library</h1>
-          <p className="page-subheader">Search, filter, test, and extract pre-engineered templates</p>
+          <h1>全部指令</h1>
+          <p className="page-subheader">按使用条件筛选：轻量文本在线试用，复杂任务复制到其他 Agent。</p>
         </div>
         <div className="header-actions">
           {/* Random Prompt — ghost/outline style, lightweight */}
@@ -372,7 +380,8 @@ export default function PromptList() {
           <Search size={16} className="search-icon" />
           <input
             type="text"
-            placeholder="Search prompt titles, tags, summaries..."
+            aria-label="搜索指令"
+            placeholder="搜索名称、标签、用途，可输入多个关键词…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="search-input"
@@ -396,17 +405,23 @@ export default function PromptList() {
       {(uniqueCategories.length > 0 || allAggregatedTags.length > 0) && (
         <div className="filter-panel card-base">
 
+          <div className="filter-group">
+            <p className="filter-title">使用条件</p>
+            <div className="flex flex-wrap gap-2">
+              {[['all', '全部'], ...Object.entries(USAGE_LABELS)].map(([mode, label]) => <button key={mode} className={`btn-secondary min-h-11 ${selectedUsage === mode ? 'border-cyan-300 text-cyan-300' : ''}`} aria-pressed={selectedUsage === mode} onClick={() => setSelectedUsage(mode)}>{label}</button>)}
+            </div>
+          </div>
           {/* Category Filter */}
           {uniqueCategories.length > 0 && (
             <div className="filter-group">
-              <p className="filter-title">Filter by Category</p>
+              <p className="filter-title">分类</p>
               <div className="category-cards-grid">
                 <button
                   className={`category-card-btn ${!selectedCategory ? 'active' : ''}`}
                   onClick={() => updateFilters(null, [])}
                 >
                   <span className="cat-btn-icon"><BookOpen size={14} /></span>
-                  <span className="cat-btn-label">All Prompts</span>
+                  <span className="cat-btn-label">全部分类</span>
                 </button>
                 {uniqueCategories.sort().map(cat => {
                   const meta = getCategoryMeta(cat);
@@ -436,7 +451,7 @@ export default function PromptList() {
           {allAggregatedTags.length > 0 && (
             <div className="filter-group-tag">
               <div className="filter-title-row">
-                <p className="filter-title">Filter by Tag</p>
+                <p className="filter-title">标签</p>
                 {activeTagNames.length > 0 && (
                   <button
                     className="tag-clear-inline"
@@ -490,9 +505,11 @@ export default function PromptList() {
         </div>
       )}
 
+      {loadError && <p role="alert" className="mb-4 rounded-lg border border-amber-700 p-3 text-amber-200">{loadError}</p>}
+      {isLoading && <p role="status" className="p-4 text-zinc-400">正在读取指令库…</p>}
       {/* ── Row 4: Grid of Collapsible Cards ───────────────────── */}
       <div className="prompts-grid" key={selectedCategory ?? 'all'}>
-        {filteredPrompts.length > 0 ? (
+        {isLoading ? null : filteredPrompts.length > 0 ? (
           filteredPrompts.map(prompt => {
             const isExpanded   = !!expandedIds[prompt.id];
             const categoryMeta = prompt.category ? getCategoryMeta(prompt.category) : null;
@@ -587,6 +604,7 @@ export default function PromptList() {
 
                 {/* Footer metadata */}
                 <div className="prompt-meta">
+                  <span className="text-zinc-300">{USAGE_LABELS[getUsageMode(prompt)]}</span>
                   <span>Indexed: {new Date(prompt.createdAt).toLocaleDateString()}</span>
                   {prompt.usageCount !== undefined && prompt.usageCount > 0 && (
                     <span className="usage-count">Used {prompt.usageCount} times</span>
@@ -611,14 +629,16 @@ export default function PromptList() {
                       </Link>
                     )}
                     <Link
-                      to={`/prompts/${prompt.id}/run`}
+                      to={canTryPrompt(prompt) ? `/prompts/${prompt.id}/run` : `/p/${prompt.id}#usage-guide`}
                       className="btn-primary btn-glow icon-action-btn"
                       onClick={e => {
-                        if (!userEmail) { e.preventDefault(); setIsLoginModalOpen(true); }
+                        if (canTryPrompt(prompt) && !userEmail) { e.preventDefault(); setPendingTrialId(prompt.id); setIsLoginModalOpen(true); }
                       }}
-                      title="Test in Sandbox"
+                      title={canTryPrompt(prompt) ? '在线试用' : '查看外部 Agent 使用指南'}
+                      aria-label={canTryPrompt(prompt) ? '在线试用' : '查看外部 Agent 使用指南'}
                     >
                       <Zap size={14} />
+                      <span className="text-xs">{canTryPrompt(prompt) ? "试用" : "使用指南"}</span>
                     </Link>
                     <button
                       className={`btn-secondary icon-action-btn copy-action-btn ${copiedId === prompt.id ? 'copied' : ''}`}
@@ -629,13 +649,15 @@ export default function PromptList() {
                         ? <Check size={14} className="text-success animate-bounce" />
                         : <CopyIcon size={14} />}
                     </button>
+                    {isAdmin && (
                     <button
                       className={`btn-secondary icon-action-btn fav-action-btn ${prompt.favorite ? 'favorited' : ''}`}
                       onClick={() => {
-                        if (!userEmail) setIsLoginModalOpen(true);
-                        else toggleFavorite(prompt);
+                        toggleFavorite(prompt);
                       }}
-                      title={prompt.favorite ? 'Remove Favourite' : 'Save Favourite'}
+                      title={prompt.favorite ? '取消首页推荐' : '加星并加入首页推荐'}
+                      aria-label={prompt.favorite ? '取消首页推荐' : '加星并加入首页推荐'}
+                      aria-pressed={!!prompt.favorite}
                     >
                       <Star
                         size={14}
@@ -643,6 +665,7 @@ export default function PromptList() {
                         style={prompt.favorite ? { color: 'var(--warning)' } : undefined}
                       />
                     </button>
+                    )}
                     {isAdmin && (
                       <button
                         className="btn-secondary icon-action-btn delete-action-btn"
@@ -664,9 +687,9 @@ export default function PromptList() {
                 <p>No matching prompts found</p>
                 <button
                   className="btn-secondary"
-                  onClick={() => { setSearchQuery(''); updateFilters(selectedCategory, []); }}
+                  onClick={() => setSearchParams(new URLSearchParams(), { replace: true })}
                 >
-                  Clear Filters
+                  清除筛选
                 </button>
               </div>
             ) : !isAdmin && prompts.length > 0 ? (
@@ -686,8 +709,9 @@ export default function PromptList() {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        title="Sign in to continue"
-        description="Please sign in to test or favourite prompts."
+        onSuccess={() => { if (pendingTrialId) navigate(`/prompts/${pendingTrialId}/run`); }}
+        title="登录后开始试用"
+        description="使用免费模型测试短文本，登录后将继续打开当前指令。"
       />
 
       {/* Random Prompt Preview Modal */}

@@ -87,6 +87,11 @@ export class PromptService {
       isDeleted: false,
       sampleOutput: data.sampleOutput,
       sampleInput: data.sampleInput,
+      usageMode: data.usageMode ?? 'external',
+      inputHint: data.inputHint,
+      outputHint: data.outputHint,
+      usageNotes: data.usageNotes,
+      trialInputMaxChars: data.trialInputMaxChars,
     };
     // Auto-generate search tokens
     prompt.searchTokens = buildSearchTokens(prompt);
@@ -152,7 +157,7 @@ export class PromptService {
   async getPublishedPrompt(id: string): Promise<Prompt | null> {
     const prompt = await firebaseService.getPrompt(id);
     if (!prompt) return null;
-    if (prompt.isDeleted) return null;
+    if (prompt.isDeleted || prompt.visibility === 'private') return null;
     if (!isPublishedStatus(prompt.status)) return null;
     return prompt;
   }
@@ -174,8 +179,8 @@ export class PromptService {
   /**
    * 订阅实时更新
    */
-  subscribeToPrompts(callback: (prompts: Prompt[]) => void): (() => void) | null {
-    return firebaseService.subscribeToPrompts(callback);
+  subscribeToPrompts(callback: (prompts: Prompt[]) => void, onError?: (error: unknown) => void): (() => void) | null {
+    return firebaseService.subscribeToPrompts(callback, onError);
   }
 
   /**

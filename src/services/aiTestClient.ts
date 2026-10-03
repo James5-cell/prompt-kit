@@ -6,6 +6,8 @@ export type ChatMessageItem = {
 };
 
 export type ExecuteChatOptions = {
+  signal?: AbortSignal;
+  promptId?: string;
   systemPrompt?: string;
   messages: ChatMessageItem[];
   provider?: string;
@@ -21,7 +23,7 @@ export type PromptRunResult = {
   finishReason?: string;
 };
 
-async function parseSSEResponse(
+export async function parseSSEResponse(
   res: Response,
   fallbackProvider: string,
   fallbackModel: string,
@@ -55,73 +57,47 @@ async function parseSSEResponse(
   const decoder = new TextDecoder();
   let buffer = '';
   let accumulatedText = '';
-  let metadata: any = null;
-
+  const state: { metadata: Partial<PromptRunResult> | null } = { metadata: null };
+  const consume = (line: string) => {
+    if (!line.startsWith('data:')) return;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === '[DONE]') return;
+    let parsed;
+    try { parsed = JSON.parse(payload); }
+    catch { throw new Error('响应格式异常，请重新试用。'); }
+    if (parsed.error) throw new Error(String(parsed.error));
+    if (typeof parsed.text === 'string') {
+      accumulatedText += parsed.text;
+      onChunk?.(accumulatedText);
+    }
+    if (parsed.metadata) state.metadata = parsed.metadata;
+  };
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        if (trimmed.startsWith('data: ')) {
-          const jsonStr = trimmed.slice(6);
-          try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.text) {
-              accumulatedText += parsed.text;
-              if (onChunk) {
-                onChunk(accumulatedText);
-              }
-            } else if (parsed.metadata) {
-              metadata = parsed.metadata;
-            } else if (parsed.error) {
-              throw new Error(parsed.error);
-            }
-          } catch (e: any) {
-            if (e.message && trimmed.includes('error')) {
-              throw e;
-            }
-            console.warn('Failed to parse SSE line:', trimmed, e);
-          }
-        }
-      }
+      for (const line of lines) consume(line.replace(/\r$/, ''));
     }
-
-    if (buffer.trim().startsWith('data: ')) {
-      const jsonStr = buffer.trim().slice(6);
-      try {
-        const parsed = JSON.parse(jsonStr);
-        if (parsed.text) {
-          accumulatedText += parsed.text;
-          if (onChunk) {
-            onChunk(accumulatedText);
-          }
-        } else if (parsed.metadata) {
-          metadata = parsed.metadata;
-        } else if (parsed.error) {
-          throw new Error(parsed.error);
-        }
-      } catch (e) {
-        console.warn('Failed to parse trailing SSE buffer:', buffer, e);
-      }
-    }
+    buffer += decoder.decode();
+    if (buffer.trim()) consume(buffer.trim());
+    if (!state.metadata) throw new Error('连接提前中断，当前结果可能不完整，请重新试用。');
+    if (!accumulatedText.trim()) throw new Error('模型未返回内容，请重试或缩短输入。');
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
   } finally {
     reader.releaseLock();
   }
 
   return {
     text: accumulatedText,
-    latencyMs: metadata?.latencyMs ?? 0,
-    providerUsed: metadata?.providerUsed ?? fallbackProvider,
-    modelUsed: metadata?.modelUsed ?? fallbackModel,
-    finishReason: metadata?.finishReason,
+    latencyMs: state.metadata?.latencyMs ?? 0,
+    providerUsed: state.metadata?.providerUsed ?? fallbackProvider,
+    modelUsed: state.metadata?.modelUsed ?? fallbackModel,
+    finishReason: state.metadata?.finishReason,
   };
 }
 
@@ -131,10 +107,12 @@ export async function executeChatStream(
 ): Promise<PromptRunResult> {
   const res = await fetch('/api/ai-test', {
     method: 'POST',
+    signal: input.signal,
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
+      promptId: input.promptId,
       systemPrompt: input.systemPrompt,
       messages: input.messages,
       provider: input.provider,

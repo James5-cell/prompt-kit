@@ -701,3 +701,9 @@
   transform: translateX(0);
   color: var(--primary);
 }
+
+@media (max-width: 640px) {
+  .dashboard { padding: 24px 16px 40px; }
+  .quick-actions-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-prompts-grid { grid-template-columns: minmax(0, 1fr); }
+}

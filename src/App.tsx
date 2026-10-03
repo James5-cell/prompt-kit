@@ -1,20 +1,22 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { db } from './storage/db';
 import { initFirebase } from './storage/firebase';
 import { AuthProvider } from './auth/AuthContext';
+import PageErrorBoundary from './components/PageErrorBoundary';
 import Layout from './components/Layout';
-import PromptList from './pages/PromptList';
-import PromptEditor from './pages/PromptEditor';
-import PromptRunner from './pages/PromptRunner';
-import PromptDetail from './pages/PromptDetail';
-import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
-import SkillLab from './pages/SkillLab';
-import DevLibrary from './pages/DevLibrary';
-import AIInsights from './pages/AIInsights';
-import Admin from './pages/Admin';
-import About from './pages/About';
+import PromptKitMascot from './mascot/Mascot';
+const PromptList = lazy(() => import('./pages/PromptList'));
+const PromptEditor = lazy(() => import('./pages/PromptEditor'));
+const PromptRunner = lazy(() => import('./pages/PromptRunner'));
+const PromptDetail = lazy(() => import('./pages/PromptDetail'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Settings = lazy(() => import('./pages/Settings'));
+const SkillLab = lazy(() => import('./pages/SkillLab'));
+const DevLibrary = lazy(() => import('./pages/DevLibrary'));
+const AIInsights = lazy(() => import('./pages/AIInsights'));
+const Admin = lazy(() => import('./pages/Admin'));
+const About = lazy(() => import('./pages/About'));
 import GoogleAnalytics from './components/GoogleAnalytics';
 import './App.css';
 
@@ -45,7 +47,8 @@ function App() {
       })
       .catch((error) => {
         console.error('Failed to initialize database:', error);
-        setIsInitialized(true); // Continue even if failed, to show error
+        initFirebase();
+        setIsInitialized(true);
       });
   }, []);
 
@@ -62,6 +65,8 @@ function App() {
       <GoogleAnalytics />
       <AuthProvider>
         <ConditionalLayout>
+          <PageErrorBoundary>
+          <Suspense fallback={<div role="status" className="p-8 text-zinc-400">正在加载页面…</div>}>
           <Routes>
             {/* ── Public routes (no sidebar) ────────────────────── */}
             <Route path="/p/:id" element={<PromptDetail />} />
@@ -79,8 +84,12 @@ function App() {
             <Route path="/dev-library" element={<DevLibrary />} />
             <Route path="/ai-insights" element={<AIInsights />} />
             <Route path="/about" element={<About />} />
+            <Route path="*" element={<div className="p-8"><h1 className="text-xl">页面不存在</h1><a href="/dashboard" className="btn-primary mt-4 inline-block">返回指令库首页</a></div>} />
           </Routes>
+          </Suspense>
+          </PageErrorBoundary>
         </ConditionalLayout>
+        <PromptKitMascot />
       </AuthProvider>
     </BrowserRouter>
   );

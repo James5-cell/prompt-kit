@@ -1,3 +1,5 @@
+import { canTryPrompt } from '../utils/promptUsage';
+import PromptUsageNotice from '../components/PromptUsageNotice';
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Icon as RiIcon } from '@iconify/react';
@@ -196,10 +198,10 @@ export default function PromptDetail() {
             </span> Edit
           </Link>
           <Link
-            to={`/prompts/${prompt.id}/run`}
+            to={canTryPrompt(prompt) ? `/prompts/${prompt.id}/run` : '#usage-guide'}
             className="detail-action-btn detail-action-test"
             onClick={(e) => {
-              if (!userEmail) {
+              if (canTryPrompt(prompt) && !userEmail) {
                 e.preventDefault();
                 setIsLoginModalOpen(true);
               }
@@ -208,7 +210,7 @@ export default function PromptDetail() {
             <span className="btn-dual-icon">
               <RiIcon icon="ri:play-circle-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
               <RiIcon icon="ri:play-circle-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-            </span> Test
+            </span> {canTryPrompt(prompt) ? "在线试用" : "使用指南"}
           </Link>
           <button
             className={`detail-copy-btn ${copied ? 'copied' : ''}`}
@@ -272,11 +274,11 @@ export default function PromptDetail() {
                     </span> Edit Template
                   </Link>
                   <Link
-                    to={`/prompts/${prompt.id}/run`}
+                    to={canTryPrompt(prompt) ? `/prompts/${prompt.id}/run` : '#usage-guide'}
                     className="mobile-dropdown-item"
                     onClick={(e) => {
                       setIsMenuOpen(false);
-                      if (!userEmail) {
+                      if (canTryPrompt(prompt) && !userEmail) {
                         e.preventDefault();
                         setIsLoginModalOpen(true);
                       }
@@ -285,7 +287,7 @@ export default function PromptDetail() {
                     <span className="btn-dual-icon">
                       <RiIcon icon="ri:play-circle-line" className="icon-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
                       <RiIcon icon="ri:play-circle-fill" className="icon-fill" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-                    </span> Test Prompt
+                    </span> {canTryPrompt(prompt) ? "在线试用" : "使用指南"}
                   </Link>
                 </div>
               </>
@@ -362,7 +364,8 @@ export default function PromptDetail() {
                   </span> Copy</>}
             </button>
           </div>
-          <div className="detail-content-block">
+          <PromptUsageNotice prompt={prompt} />
+      <div className="detail-content-block">
             <pre className="detail-content-text">{prompt.content}</pre>
           </div>
         </div>

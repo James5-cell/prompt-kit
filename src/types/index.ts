@@ -44,6 +44,11 @@ export interface Prompt {
   // ── New: sample output for public display ──────────────────────
   sampleOutput?: string;   // example AI output shown on public detail page
   sampleInput?: string;    // example input used to produce sampleOutput
+  usageMode?: 'direct' | 'text' | 'external';
+  inputHint?: string;
+  outputHint?: string;
+  usageNotes?: string;
+  trialInputMaxChars?: number;
 }
 
 // ─── Tag 实体 ───────────────────────────────────────────────────

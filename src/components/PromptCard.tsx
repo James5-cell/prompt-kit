@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import { getTrialInputLimit } from '../utils/trialBudget';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, Check, Zap, ArrowUpRight } from 'lucide-react';
+import { Copy, Check, Zap, ArrowUpRight, Star } from 'lucide-react';
 import { Icon as RiIcon } from '@iconify/react';
-import { type Prompt } from '../types';
-import { extractPromptValuePoints } from '../utils/promptParser';
+import type { Prompt } from '../types';
+import { canTryPrompt, getUsageMode, getUsageNotes, USAGE_LABELS } from '../utils/promptUsage';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -11,143 +12,63 @@ interface PromptCardProps {
   categoryLabel?: string;
   categoryIcon?: string;
   categoryColor?: string;
-  onCopy: (id: string, content: string) => void;
+  onCopy: (id: string, content: string) => void | Promise<void>;
   onTest: (prompt: Prompt) => void;
+  onFavorite?: (prompt: Prompt) => Promise<void>;
 }
 
-export const PromptCard: React.FC<PromptCardProps> = ({
-  prompt,
-  isAdmin = false,
-  categoryLabel,
-  categoryIcon,
-  categoryColor,
-  onCopy,
-  onTest,
-}) => {
+export default function PromptCard({ prompt, isAdmin = false, categoryLabel, categoryIcon, categoryColor, onCopy, onTest, onFavorite }: PromptCardProps) {
   const [copied, setCopied] = useState(false);
-  const { scenario, deliverable, cleanCodeSnippet } = extractPromptValuePoints(prompt);
-
-  const handleCopyClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onCopy(prompt.id, prompt.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const detailUrl = isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`;
+  const mode = getUsageMode(prompt);
+  const canTry = canTryPrompt(prompt);
+
+  async function copy() {
+    try {
+      await onCopy(prompt.id, prompt.content);
+      setError('');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { setError('复制失败，请在详情页手动复制。'); }
+  }
+
+  async function toggleStar() {
+    if (!onFavorite || saving) return;
+    setSaving(true);
+    try { await onFavorite(prompt); setError(''); }
+    catch { setError('加星失败，请稍后重试。'); }
+    finally { setSaving(false); }
+  }
 
   return (
-    <article className="group relative flex flex-col justify-between rounded-lg border border-zinc-800/80 bg-zinc-900/40 p-5 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-900/80 hover:shadow-xl hover:shadow-black/40">
-      <div className="flex flex-col gap-3.5">
-        {/* ── 顶部元数据：分类标与呼吸留白（彻底移除主观模型打标） ── */}
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-300">
-            {categoryIcon && (
-              <RiIcon
-                icon={categoryIcon}
-                className="h-3.5 w-3.5"
-                style={{ color: categoryColor || '#00e5ff' }}
-              />
-            )}
-            <span className="font-medium tracking-tight">
-              {categoryLabel || prompt.category || 'General'}
-            </span>
-          </div>
-        </div>
-
-        {/* ── 指令标题 ── */}
-        <h2 className="text-sm font-semibold tracking-tight text-zinc-100 transition-colors group-hover:text-white">
-          <Link to={detailUrl} className="hover:underline line-clamp-1">
-            {prompt.title}
-          </Link>
-        </h2>
-
-        {/* ── 核心双价值点（痛点与产出） ── */}
-        <div className="flex flex-col gap-2 rounded-md border border-zinc-800/60 bg-zinc-950/50 p-2.5 text-xs">
-          <div className="flex items-start gap-2">
-            <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-amber-500/10 text-[9px] font-bold text-amber-400">
-              P
-            </span>
-            <span className="text-zinc-300 line-clamp-1 leading-snug">
-              <strong className="font-medium text-zinc-400">痛点：</strong>
-              {scenario}
-            </span>
-          </div>
-
-          <div className="flex items-start gap-2">
-            <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-[9px] font-bold text-emerald-400">
-              O
-            </span>
-            <span className="text-zinc-300 line-clamp-1 leading-snug">
-              <strong className="font-medium text-zinc-400">产出：</strong>
-              {deliverable}
-            </span>
-          </div>
-        </div>
-
-        {/* ── 代码微质感预览窗口（固定高度 108px + 渐隐遮罩） ── */}
-        <div className="relative h-[108px] overflow-hidden rounded border border-zinc-800/70 bg-zinc-950/90 p-3 font-mono text-[11px] leading-relaxed text-zinc-400">
-          <pre className="overflow-hidden whitespace-pre-wrap select-none opacity-85">
-            <code>{cleanCodeSnippet}</code>
-          </pre>
-          {/* 底部平滑渐隐遮罩 */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent" />
-        </div>
-
-        {/* ── 标签列表 ── */}
-        {prompt.tagNames && prompt.tagNames.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {prompt.tagNames.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded border border-zinc-800 bg-zinc-800/40 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
+    <article className="flex h-full flex-col rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 transition-colors hover:border-zinc-600">
+      <div className="flex items-center justify-between gap-2 text-sm text-zinc-300">
+        <span className="inline-flex items-center gap-2">
+          {categoryIcon && <RiIcon icon={categoryIcon} width={16} style={{ color: categoryColor }} />}
+          {categoryLabel || prompt.category || '通用'}
+        </span>
+        {isAdmin && onFavorite && <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-zinc-800 focus-visible:outline focus-visible:outline-cyan-400" aria-label={prompt.favorite ? '取消首页推荐' : '加星并加入首页推荐'} aria-pressed={!!prompt.favorite} disabled={saving} onClick={toggleStar}>
+          <Star size={18} className={prompt.favorite ? 'text-amber-300' : 'text-zinc-400'} fill={prompt.favorite ? 'currentColor' : 'none'} />
+        </button>}
       </div>
-
-      {/* ── 底部操作工具栏 ── */}
-      <div className="mt-4 flex items-center justify-between border-t border-zinc-800/60 pt-3 text-xs">
-        <div className="flex items-center gap-2">
-          {/* 一键复制 (未登录可用) */}
-          <button
-            onClick={handleCopyClick}
-            className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-medium transition-colors ${
-              copied
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                : 'border-zinc-800 bg-zinc-800/40 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-200'
-            }`}
-            title="复制完整 Prompt"
-          >
-            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            <span>{copied ? '已复制' : '复制'}</span>
-          </button>
-
-          {/* ⚡ 在线测试 (权限硬卡点) */}
-          <button
-            onClick={() => onTest(prompt)}
-            className="inline-flex items-center gap-1.5 rounded border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700"
-            title="直连沙盒在线调测"
-          >
-            <Zap size={12} className="text-amber-400" />
-            <span>在线测试</span>
-          </button>
-        </div>
-
-        {/* 详情链接 */}
-        <Link
-          to={detailUrl}
-          className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-200"
-        >
-          <span>详情</span>
-          <ArrowUpRight size={12} />
-        </Link>
+      <h2 className="mt-3 text-lg font-semibold leading-snug text-zinc-100"><Link to={detailUrl} className="hover:text-cyan-300 focus-visible:outline focus-visible:outline-cyan-400">{prompt.title}</Link></h2>
+      <span className={`mt-3 w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${canTry ? 'border-emerald-700/70 bg-emerald-950/50 text-emerald-200' : 'border-amber-700/60 bg-amber-950/30 text-amber-200'}`}>{USAGE_LABELS[mode]}</span>
+      {canTry && <p className="mt-2 text-xs text-zinc-400">片段体验 · 每次最多 {getTrialInputLimit(prompt.content)} 字符</p>}
+      <dl className="mt-4 space-y-3 text-sm leading-relaxed">
+        <div><dt className="text-zinc-400">{canTry ? '输入' : '准备'}</dt><dd className="mt-1 text-zinc-200">{prompt.inputHint || '查看完整指令的输入要求'}</dd></div>
+        <div><dt className="text-zinc-400">获得</dt><dd className="mt-1 text-zinc-200">{prompt.outputHint || prompt.summary || '查看详情了解预期结果'}</dd></div>
+      </dl>
+      {canTry && prompt.sampleInput ? <div className="mt-4 rounded-lg bg-zinc-950/70 p-3 text-sm leading-relaxed text-zinc-300"><p className="mb-1 text-xs text-zinc-400">示例输入</p><p className="line-clamp-3 whitespace-pre-wrap">{prompt.sampleInput}</p></div> : <p className="mt-4 text-sm leading-relaxed text-zinc-300">{getUsageNotes(prompt)}</p>}
+      <div className="mt-4 flex flex-wrap gap-1.5">{prompt.tagNames?.slice(0, 3).map(tag => <span key={tag} className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300">{tag}</span>)}</div>
+      <div className="flex-1" />
+      {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-4">
+        {canTry ? <button onClick={() => onTest(prompt)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-cyan-300 px-3 text-sm font-semibold text-zinc-950 hover:bg-cyan-200 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-cyan-300"><Zap size={16} />{mode === 'text' ? '提供文本后试用' : '立即试用'}</button> : <Link to={`/p/${prompt.id}#usage-guide`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-zinc-600 px-3 text-sm text-zinc-100 hover:bg-zinc-800">使用指南<ArrowUpRight size={16} /></Link>}
+        <button onClick={copy} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-zinc-300 hover:bg-zinc-800">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? '已复制' : '复制'}</button>
+        <Link to={detailUrl} className="ml-auto inline-flex min-h-11 items-center gap-1 text-sm text-zinc-300 hover:text-white">详情<ArrowUpRight size={14} /></Link>
       </div>
     </article>
   );
-};
-
-export default PromptCard;
+}

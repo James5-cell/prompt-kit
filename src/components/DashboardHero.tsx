@@ -18,6 +18,7 @@ interface DashboardHeroProps {
   onSelectCategory: (id: string) => void;
   categories: CategoryOption[];
   featuredCount: number;
+  isSearching: boolean;
   totalFilteredCount: number;
   totalVaultCount: number;
   onNavigateToLibrary: () => void;
@@ -32,6 +33,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
   onSelectCategory,
   categories,
   featuredCount,
+  isSearching,
   totalFilteredCount,
   totalVaultCount,
   onNavigateToLibrary,
@@ -41,18 +43,18 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
       {/* ── 1. 极简工件 Eyebrow 规范标签 ── */}
       <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3.5 py-1 font-mono text-[11px] text-zinc-400">
         <Sparkles size={11} className="text-zinc-400" />
-        <span>PROMPT KIT ARCHIVE // PRODUCTION VAULT</span>
+        <span>PROMPT KIT · 实用指令收藏</span>
       </div>
 
       {/* ── 2. 主标题：清晰有力，克制排版 ── */}
       <h1 className="mb-3 text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
-        高确定性实战指令库
+        找到实用指令，立即体验效果
       </h1>
 
       {/* ── 3. 价值主张说明语（收敛为单段高信噪比文案） ── */}
-      <p className="mb-8 max-w-2xl text-sm leading-relaxed text-zinc-400">
-        拒绝空泛闲聊模板，只收录经工程落地与复杂推理验证的 System Prompts。
-        支持免客户端直连沙盒实测，保障大模型推演的高确定性输出。
+      <p className="mb-8 max-w-2xl text-base leading-relaxed text-zinc-300">
+        收集翻译、写作、学习、思考与研发指令。支持轻量文本试用，
+        每条指令都标明所需资料和使用环境。
       </p>
 
       {/* ── 4. Raycast 风格集成式命令搜索舱 ── */}
@@ -60,11 +62,12 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
         <div className="relative flex items-center rounded-lg border border-zinc-800 bg-zinc-900/90 shadow-2xl transition-all focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-600">
           <Search size={16} className="ml-3.5 shrink-0 text-zinc-500" />
           <input
-            type="text"
+            aria-label="搜索指令库"
+            type="search"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={onSearchKeyDown}
-            placeholder="搜索架构设计、代码审查、双语精译、商业金融等实战指令..."
+            placeholder="搜索翻译、词典、文章分析、代码审查…"
             className="w-full bg-transparent px-3 py-3 text-sm text-zinc-200 placeholder-zinc-500 outline-none"
           />
 
@@ -89,7 +92,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
           <div className="mt-2.5 flex items-center justify-between rounded border border-zinc-800/60 bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400">
             <span>
               已即时呈现前 <strong className="font-mono text-zinc-200">{featuredCount}</strong> 条匹配项
-              （全库共 {totalFilteredCount} 项）
+              （当前筛选共 {totalFilteredCount} 项）
             </span>
             <button
               onClick={onNavigateToLibrary}
@@ -102,14 +105,15 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
       </div>
 
       {/* ── 5. 分类 Segmented Control (横向分段切换，取代散乱堆叠) ── */}
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-1 rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-1">
+      <div className="mt-5 grid w-full grid-cols-2 items-center justify-center gap-1 sm:flex sm:flex-wrap rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-1">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.id;
           return (
             <button
               key={cat.id}
+              aria-pressed={selectedCategory === cat.id}
               onClick={() => onSelectCategory(cat.id)}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1.5 min-h-11 rounded-md px-3 py-2 text-sm font-medium transition-all ${
                 isActive
                   ? 'border border-zinc-700/60 bg-zinc-800 text-zinc-100 shadow-sm'
                   : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
@@ -128,9 +132,11 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
 
       {/* 数量微提示 */}
       <div className="mt-2 text-right w-full max-w-2xl px-1">
-        <span className="font-mono text-[11px] text-zinc-500">
-          精选推荐 {featuredCount} 项 · 全库共收录 {totalVaultCount} 项
-        </span>
+<div className="flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-300">
+          <span>{isSearching ? "搜索结果" : "管理员精选"} {featuredCount} 项 · 全库 {totalVaultCount} 项</span>
+          <button onClick={onNavigateToLibrary} className="min-h-11 text-cyan-300 hover:underline">查看全部 {totalFilteredCount} 条 →</button>
+        </div>
+        {!isSearching && <p className="text-left text-xs leading-relaxed text-zinc-400">管理员加星推荐 · 按创建时间从新到旧展示，最多 3 条</p>}
       </div>
     </section>
   );

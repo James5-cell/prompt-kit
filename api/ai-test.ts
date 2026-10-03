@@ -1,4 +1,5 @@
 import { streamText } from 'ai';
+import { buildTrialSystem, getTrialInputLimit, trialBudgetError, TRIAL_OUTPUT_TOKENS } from '../src/utils/trialBudget.js';
 import { resolveAIModel } from './_lib/ai/providerFactory.js';
 import { FALLBACK_CONFIG } from '../src/config/aiModels.js';
 import { getPlatformConfig } from './_lib/db.js';
@@ -14,7 +15,7 @@ interface ChatMessage {
   content: string;
 }
 
-const MAX_CONTEXT_MESSAGES = 8;
+
 
 /**
  * Normalizes input messages or fallback prompt into a validated sliding-window array.
@@ -35,9 +36,7 @@ function normalizeRequestMessages(
       return null;
     }
 
-    return validMessages.length > MAX_CONTEXT_MESSAGES
-      ? validMessages.slice(-MAX_CONTEXT_MESSAGES)
-      : validMessages;
+    return validMessages;
   }
 
   if (prompt && typeof prompt === 'string' && prompt.trim()) {
@@ -68,8 +67,8 @@ async function resolveCredentials(
   if (!apiKey) {
     const platformConfig = await getPlatformConfig();
     if (platformConfig?.defaultProvider && platformConfig?.defaultModel) {
-      targetProvider = targetProvider || platformConfig.defaultProvider;
-      targetModel = targetModel || platformConfig.defaultModel;
+      targetProvider = platformConfig.defaultProvider;
+      targetModel = platformConfig.defaultModel;
       console.log(`[ai-test] Fallback to platform default config: provider=${targetProvider}, model=${targetModel}`);
     }
   }
@@ -212,7 +211,7 @@ export default {
       console.warn('[ai-test] Failed to parse request body:', e);
     }
 
-    const { prompt, systemPrompt, messages, provider, model, apiKey } = requestBody || {};
+    const { prompt, systemPrompt, promptId, messages, provider, model, apiKey } = requestBody || {};
 
     try {
       const normalizedMessages = normalizeRequestMessages(messages, prompt);
@@ -224,6 +223,39 @@ export default {
             ...corsHeaders,
           },
         });
+      }
+
+      let effectiveSystem = typeof systemPrompt === 'string' ? systemPrompt.trim() : '';
+      if (promptId !== undefined) {
+        if (typeof promptId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(promptId)) {
+          return new Response(JSON.stringify({ error: 'Invalid prompt id' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        // Read canonical public metadata: never trust a client's claim that an external prompt is runnable.
+        const docResponse = await fetch(`https://firestore.googleapis.com/v1/projects/prompt-kit-7a67e/databases/(default)/documents/prompts/${encodeURIComponent(promptId)}`, { signal: AbortSignal.timeout(10000) });
+        if (!docResponse.ok) {
+          return new Response(JSON.stringify({ error: '暂时无法核验指令使用条件，请稍后重试。' }), { status: 503, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        const { fields } = await docResponse.json();
+        const mode = fields?.usageMode?.stringValue;
+        const status = fields?.status?.stringValue ?? 'active';
+        if (!['published', 'active'].includes(status) || fields?.isDeleted?.booleanValue || fields?.visibility?.stringValue === 'private') {
+          return new Response(JSON.stringify({ error: '此指令尚未公开。' }), { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        if (mode !== 'direct' && mode !== 'text') {
+          return new Response(JSON.stringify({ error: fields?.usageNotes?.stringValue || '此指令需要外部环境，请复制到其他 Agent 使用。' }), { status: 422, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        const content = fields?.content?.stringValue || '';
+        const firstInput = normalizedMessages.find(m => m.role === 'user')?.content || '';
+        effectiveSystem = buildTrialSystem(content, firstInput);
+        const budgetError = trialBudgetError(effectiveSystem, normalizedMessages, getTrialInputLimit(content));
+        const latestInput = [...normalizedMessages].reverse().find(m => m.role === 'user')?.content || '';
+        const inputError = mode === 'text' && /^https?:\/\/\S+$/i.test(latestInput.trim()) ? '请粘贴正文，在线试用不能读取网址。' : null;
+        if (budgetError || inputError) {
+          return new Response(JSON.stringify({ error: budgetError || inputError }), { status: 413, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        if (!apiKey && normalizedMessages.filter(m => m.role === 'user').length > 5) {
+          return new Response(JSON.stringify({ error: '本次免费试用已达 5 轮，请开启新试用。' }), { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
       }
 
       console.log(`[ai-test] Incoming request: provider=${provider}, model=${model}, hasSystemPrompt=${!!systemPrompt}, messagesCount=${normalizedMessages.length}, apiKeyLength=${apiKey ? apiKey.length : 0}`);
@@ -239,11 +271,11 @@ export default {
       const streamParams: any = {
         model: resolvedModel,
         messages: normalizedMessages,
-        maxOutputTokens: 4096,
+        maxOutputTokens: promptId ? TRIAL_OUTPUT_TOKENS : 4096,
       };
 
-      if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim()) {
-        streamParams.system = systemPrompt.trim();
+      if (effectiveSystem) {
+        streamParams.system = effectiveSystem;
       }
 
       const start = Date.now();

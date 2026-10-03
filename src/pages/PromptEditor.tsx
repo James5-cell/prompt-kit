@@ -1,3 +1,4 @@
+import { buildTrialSystem, trialBudgetError, getTrialInputLimit } from '../utils/trialBudget';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { type Prompt, type PromptStatus, type Tag } from '../types';
@@ -6,6 +7,7 @@ import { tagService } from '../services/tagService';
 import { useAuth } from '../auth/AuthContext';
 import { useNoIndex } from '../hooks/useNoIndex';
 import SEOHead from '../components/SEOHead';
+import { USAGE_LABELS } from '../utils/promptUsage';
 import './PromptEditor.css';
 
 export default function PromptEditor() {
@@ -14,6 +16,7 @@ export default function PromptEditor() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -22,6 +25,11 @@ export default function PromptEditor() {
   const [language, setLanguage] = useState('');
   const [summary, setSummary] = useState('');
   const [status, setStatus] = useState<PromptStatus>('draft');
+  const [usageMode, setUsageMode] = useState<NonNullable<Prompt['usageMode']>>('external');
+  const [inputHint, setInputHint] = useState('');
+  const [outputHint, setOutputHint] = useState('');
+  const [usageNotes, setUsageNotes] = useState('');
+  const [sampleInput, setSampleInput] = useState('');
   const [sampleOutput, setSampleOutput] = useState('');
 
   // Tag state
@@ -57,6 +65,11 @@ export default function PromptEditor() {
     const loadedStatus = loaded.status || 'draft';
     setStatus(loadedStatus === 'active' ? 'published' : loadedStatus);
     setSampleOutput(loaded.sampleOutput || '');
+    setUsageMode(loaded.usageMode ?? 'external');
+    setInputHint(loaded.inputHint || '');
+    setOutputHint(loaded.outputHint || '');
+    setUsageNotes(loaded.usageNotes || '');
+    setSampleInput(loaded.sampleInput || '');
   }
 
   async function loadPrompt() {
@@ -102,6 +115,9 @@ export default function PromptEditor() {
       tagNames: tagNames,
       status: status,
       sampleOutput: sampleOutput.trim() || '',
+      trialInputMaxChars: usageMode === 'external' ? 0 : getTrialInputLimit(content),
+      usageMode, inputHint: inputHint.trim(), outputHint: outputHint.trim(),
+      usageNotes: usageNotes.trim(), sampleInput: sampleInput.trim(),
     };
   }
 
@@ -111,10 +127,24 @@ export default function PromptEditor() {
       return;
     }
     if (!title.trim()) {
-      alert('Please enter a title');
+      setSaveError('请输入指令名称。');
       return;
     }
 
+    if (!content.trim()) { setSaveError('请输入完整指令内容。'); return; }
+    if (status === 'published' && (!inputHint.trim() || !outputHint.trim() || !usageNotes.trim())) {
+      setSaveError('发布前请补齐输入要求、输出说明和使用条件。'); return;
+    }
+    if (usageMode !== 'external') {
+      const limit = getTrialInputLimit(content);
+      if (limit === 0) { setSaveError('指令本身超出轻量试用预算，请精简指令或改为需要外部环境。'); return; }
+      if (status === 'published' && !sampleInput.trim()) { setSaveError('可试用指令发布前需要一个示例输入。'); return; }
+      if (sampleInput.trim()) {
+        const error = trialBudgetError(buildTrialSystem(content, sampleInput.trim()), [{ role: 'user', content: sampleInput.trim() }], limit);
+        if (error) { setSaveError(`示例输入无法试用：${error}`); return; }
+      }
+    }
+    setSaveError('');
     setIsSaving(true);
     try {
       const promptData = buildPromptData();
@@ -144,6 +174,7 @@ export default function PromptEditor() {
         description="專業 Prompt Engineering 編輯器，支援多變數模板、格式校驗與版本管理。"
         canonical={id === 'new' ? 'https://www.205011.xyz/prompts/new' : `https://www.205011.xyz/prompts/${id}`}
       />
+      {saveError && <p role="alert" className="rounded-lg border border-red-700 p-3 text-red-300">{saveError}</p>}
       <div className="editor-header">
         <h1>{id === 'new' ? 'New Prompt' : 'Edit Prompt'}</h1>
         <div className="header-actions">
@@ -348,6 +379,18 @@ export default function PromptEditor() {
             <p className="field-hint">Brief executive summary displayed on cards in the prompt list.</p>
           </div>
 
+          <div className="form-group">
+            <label htmlFor="usage-mode">使用条件</label>
+            <select id="usage-mode" className="input-base" value={usageMode} onChange={e => setUsageMode(e.target.value as NonNullable<Prompt['usageMode']>)} disabled={!isAdmin}>
+              {Object.entries(USAGE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <p className="field-hint">外部环境类仅展示使用指南。新指令需确认条件后再开放试用。</p>
+          </div>
+          <div className="form-group"><label htmlFor="input-hint">输入／准备资料</label><input id="input-hint" className="input-base" value={inputHint} onChange={e => setInputHint(e.target.value)} disabled={!isAdmin} /></div>
+          <div className="form-group"><label htmlFor="output-hint">预期产出</label><input id="output-hint" className="input-base" value={outputHint} onChange={e => setOutputHint(e.target.value)} disabled={!isAdmin} /></div>
+          <div className="form-group"><label htmlFor="usage-notes">使用说明／外部 Agent 指引</label><textarea id="usage-notes" className="input-base" rows={3} value={usageNotes} onChange={e => setUsageNotes(e.target.value)} disabled={!isAdmin} /></div>
+          <div className="form-group"><label htmlFor="sample-input">示例输入</label><textarea id="sample-input" className="input-base" rows={3} value={sampleInput} onChange={e => setSampleInput(e.target.value)} disabled={!isAdmin} /></div>
+
           {/* ── Sample Output ──────────────────────────────────── */}
           <div className="form-group">
             <label htmlFor="prompt-sample-output">Sample Output</label>
@@ -376,7 +419,7 @@ export default function PromptEditor() {
               onClick={() => setFavorite(!favorite)}
               disabled={!isAdmin}
             >
-              {favorite ? '★ Favorited' : '☆ Mark as Favorite'}
+              {favorite ? '★ 已加入首页推荐' : '☆ 加星并加入首页推荐'}
             </button>
           </div>
         </div>

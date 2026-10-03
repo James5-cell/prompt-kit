@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+async function loadTS(path) {
+  const { outputText } = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
+  return import('data:text/javascript;base64,' + Buffer.from(outputText).toString('base64'));
+}
+const usage = await loadTS('../src/utils/promptUsage.ts');
+const budget = await loadTS('../src/utils/trialBudget.ts');
+const make = (id, createdAt, favorite = true, extra = {}) => ({ id, title: id, content: 'Explain input', createdAt, updatedAt: createdAt, favorite, ...extra });
+assert.deepEqual(usage.selectFeatured([make('old',1),make('z',3),make('a',3),make('new',4),make('unstarred',9,false),make('deleted',10,true,{isDeleted:true})]).map(p=>p.id), ['new','a','z']);
+assert.deepEqual(usage.selectFeatured([make('none',1,false)]), []);
+assert.equal(usage.canTryPrompt(make('external',1,true,{usageMode:'external'})), false);
+assert.equal(usage.canTryPrompt(make('unclassified',1)), false);
+assert.equal(usage.canTryPrompt(make('text',1,true,{usageMode:'text'})), true);
+assert.ok(usage.validateTrialInput(make('text',1,true,{usageMode:'text'}), 'https://example.com'));
+assert.ok(usage.validateTrialInput(make('direct',1,true,{usageMode:'direct'}), '   '));
+assert.equal(usage.validateTrialInput(make('text',1,true,{usageMode:'text'}), 'Actual article text'), null);
+assert.equal(budget.TRIAL_INPUT_TOKENS + budget.TRIAL_OUTPUT_TOKENS + budget.TRIAL_SAFETY_TOKENS, budget.TRIAL_CONTEXT_TOKENS);
+assert.equal(budget.trialBudgetError('Short instruction',[{role:'user',content:'hello'}]), null);
+assert.ok(budget.trialBudgetError('Short instruction',[{role:'user',content:'中'.repeat(2001)}]));
+assert.ok(budget.trialBudgetError('instruction',[{role:'user',content:'ok'}, {role:'assistant',content:'中'.repeat(4000)}]));
+assert.ok(budget.getTrialInputLimit('中'.repeat(3500)) < budget.getTrialInputLimit('short'));
+assert.equal(budget.getTrialInputLimit('中'.repeat(6000)),0);
+assert.ok(budget.buildTrialSystem('{{input}}','first text').startsWith('first text'));
+assert.ok(budget.getTrialInputLimit('{{input}}'.repeat(4)) < budget.getTrialInputLimit('short'));
+const rows=JSON.parse(readFileSync(new URL('./data/prompt-usage-2026-10-03.json',import.meta.url),'utf8'));
+assert.equal(rows.length,46);
+assert.equal(new Set(rows.map(r=>r.id)).size,46);
+assert.equal(rows.filter(r=>r.usageMode==='external').length,20);
+assert.ok(rows.every(r=>r.usageNotes && r.inputHint && r.outputHint && r.contentSha256));
+assert.ok(rows.filter(r=>r.usageMode!=='external').every(r=>r.sampleInput));
+console.log('Passed: star ordering, external/unclassified gating, required text, URL rejection, total context/output reservation, CJK limits, long history, template variables, and all 46 reviewed records.');

@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/generate-sitemap.mjs",
+    "prebuild": "node scripts/generate-icons.mjs && node scripts/generate-sitemap.mjs",
     "build": "tsc -b && vite build",
     "postbuild": "node scripts/prerender-prompts.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "deploy": "npm run build && firebase deploy",
-    "deploy:hosting": "npm run build && firebase deploy --only hosting"
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "predev": "node scripts/generate-icons.mjs",
+    "test:trial": "node scripts/test-prompt-usage.mjs && node scripts/test-ai-stream.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.75",

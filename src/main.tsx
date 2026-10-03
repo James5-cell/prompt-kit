@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
 import { addCollection } from '@iconify/react'
-import riData from '@iconify-json/ri/icons.json'
+import riData from './config/local-icons.json'
 import './index.css'
 import App from './App.tsx'
 

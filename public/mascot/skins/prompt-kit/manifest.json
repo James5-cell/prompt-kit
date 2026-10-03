@@ -1,0 +1,81 @@
+{
+  "base": {
+    "dark": "core/body_dark.png",
+    "light": "core/body_light.png"
+  },
+  "penetration_test": {
+    "backgrounds": [
+      "black",
+      "white",
+      "termgreen",
+      "brightyellow"
+    ],
+    "status": "pass"
+  },
+  "pipeline": "mascot_db v1 (Mascot Asset Pipeline Agent)",
+  "situation": "prompt-kit",
+  "slots": [
+    {
+      "anchor": {
+        "right": "2%",
+        "top": "2%",
+        "transform": "rotate(4deg)",
+        "transform_origin": "50% 50%",
+        "width": "32%",
+        "z_index": 3
+      },
+      "behavior": {
+        "follow_breath": true,
+        "on_click": "prompt_pulse",
+        "on_shock": "rattle"
+      },
+      "id": "bubble",
+      "size": [
+        906,
+        900
+      ],
+      "src": "skins/prompt-kit/bubble_clean.png",
+      "src_dark": "skins/prompt-kit/bubble_dark.png"
+    },
+    {
+      "anchor": {
+        "left": "4%",
+        "top": "6%",
+        "transform": "rotate(-6deg)",
+        "transform_origin": "50% 50%",
+        "width": "18%",
+        "z_index": 4
+      },
+      "behavior": {
+        "follow_breath": true,
+        "on_antic": "draft_spark"
+      },
+      "id": "sparkles",
+      "size": [
+        1489,
+        1266
+      ],
+      "src": "skins/prompt-kit/sparkles_clean.png",
+      "src_dark": "skins/prompt-kit/sparkles_dark.png"
+    }
+  ],
+  "states": {
+    "companion": {
+      "bottom_offset": "16px",
+      "idle_timeout": 10
+    },
+    "hiding": {
+      "bottom_offset": "-98px",
+      "show_sprout": true
+    },
+    "scared": {
+      "duration": 0.38,
+      "idle_timeout": 12
+    },
+    "shy": {
+      "blush": true,
+      "duration": 2.5
+    }
+  },
+  "version": "1.0.0"
+}

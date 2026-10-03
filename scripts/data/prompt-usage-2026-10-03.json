@@ -1,0 +1,442 @@
+[
+  {
+    "id": "1764790364421-ktqoia3wi",
+    "title": "Lyra：AI 提示詞優化專家",
+    "usageMode": "direct",
+    "inputHint": "描述要优化的指令和目标模型",
+    "outputHint": "一份优化后的 Prompt 与修改说明",
+    "usageNotes": "不需要外部工具；输入目标、场景及原始指令即可。",
+    "sampleInput": "BASIC using ChatGPT - 帮我写一封礼貌的邮件，向老师申请延后两天提交作业。",
+    "contentSha256": "3595c853687041ba18f8e338da454a3b17704cf900e9a44674a2d22bd20013e6"
+  },
+  {
+    "id": "1764790404166-46q0bqj2z",
+    "title": "首席閱讀助理：結構化知識萃取專家",
+    "usageMode": "external",
+    "inputHint": "准备完整书籍或原始阅读资料",
+    "outputHint": "带来源引用的六模块阅读报告",
+    "usageNotes": "指令要求 NotebookLM 原生引用和全书资料。请复制到支持文档知识库与来源引用的 Agent（如 NotebookLM）使用。",
+    "contentSha256": "178a2940b100e70a6f3cc174153abdda46a94a3a1cbf8b6dec98dc6dd4319a61"
+  },
+  {
+    "id": "1764790452899-au3h55zzj",
+    "title": "留學社交：多情境中英翻譯助手",
+    "usageMode": "direct",
+    "inputHint": "输入一句中文和交流场景",
+    "outputHint": "正式、日常、关怀、幽默四种英文译法",
+    "usageNotes": "输入短句即可；长篇材料可分段处理。",
+    "sampleInput": "不好意思，我今天会晚到十分钟，谢谢你等我。",
+    "contentSha256": "79b4637f303e10bcb1ec228c5b536fcb9524fd3126bd0231e91cff3b2947414f"
+  },
+  {
+    "id": "1764792454591-afr3b8tcg",
+    "title": "費曼學習 導師",
+    "usageMode": "direct",
+    "inputHint": "输入学习主题、学生水平和教学目标",
+    "outputHint": "费曼式互动问答与学习反馈",
+    "usageNotes": "只需描述学习主题，不要求导入书籍或数据库。",
+    "sampleInput": "主题：机会成本；学生水平：初学者；目标：用生活例子解释概念。",
+    "contentSha256": "b0f55a90365bdb50e2a9b788449a8e5b073d329b59c8fe334f61bd9cedece1b1"
+  },
+  {
+    "id": "1764794000712-mr2s92yzs",
+    "title": "詞彙深旅：英語語言學大師",
+    "usageMode": "direct",
+    "inputHint": "输入一个英语单词",
+    "outputHint": "释义、发音、搭配、词源与练习",
+    "usageNotes": "输入单词即可开始；引用与词源细节仍需自行核对。",
+    "sampleInput": "resilient",
+    "contentSha256": "94b3a13bebea017dd73ead4707ec13a6033e121e5cbbce62adbb1a80022a3217"
+  },
+  {
+    "id": "1764794187743-a28hz7dcb",
+    "title": "沉沒成本決策顧問",
+    "usageMode": "direct",
+    "inputHint": "描述正在犹豫的决定、未来投入与收益",
+    "outputHint": "沉没成本分析与行动建议",
+    "usageNotes": "描述自己的处境即可，不需要外部环境。",
+    "sampleInput": "我花了三个月学一个工具，现在发现另一个更适合。我不舍得放弃，接下来还要投入两个月，怎么判断？",
+    "contentSha256": "6fce39e4dfc83b3a974149db6f56999febc7a48ae1d95212e04b3ad665cb5e14"
+  },
+  {
+    "id": "1764794805997-bobdhsicg",
+    "title": "深度雙語內容架構與知識萃取專家",
+    "usageMode": "text",
+    "inputHint": "粘贴完整文章或需要分析的段落",
+    "outputHint": "双语摘要、关键引用与结构化笔记",
+    "usageNotes": "试用时请粘贴正文代替 {browser-tab}；这里不能读取浏览器标签页或仅凭网址获取文章。",
+    "sampleInput": "标题：小步学习\n正文：每天学习十分钟，比周末一次学习两小时更容易形成习惯。及时回顾可以帮助发现理解中的遗漏。",
+    "contentSha256": "1cd3a246bf8dd7d7cf1ec1535567e77c8691c0fa4d295bb9102b23623427e65e"
+  },
+  {
+    "id": "1764795052429-rs0b5q7u3",
+    "title": "網頁速讀王：30 秒核心掃描器",
+    "usageMode": "text",
+    "inputHint": "粘贴文章正文或选中的文本",
+    "outputHint": "三个核心洞察与速读摘要",
+    "usageNotes": "支持原指令的全文／选中文本模式；网址模式请移步支持浏览网页的 Agent。",
+    "sampleInput": "远程团队每周用一页文档记录目标、负责人和进展。同步会议减少，但重要决策仍需即时沟通，以避免信息误解。",
+    "contentSha256": "cc976f96b3c57c300fd8434c3a3ceeb6f1d509008961e095c3c8aab2b63f56b1"
+  },
+  {
+    "id": "1764802224070-fydk2yl87",
+    "title": "Telegram 品味評論家（個人閱讀實驗室）",
+    "usageMode": "external",
+    "inputHint": "准备作品资料、准确元数据与原文",
+    "outputHint": "适合 Telegram 的作品推荐文案",
+    "usageNotes": "指令需要作品年份、作者／演员及原文金句。请在可检索作品资料或读取原书的 Agent 中使用，避免凭作品名称生成未经核实的信息。",
+    "contentSha256": "395da6c6b6c19e9aa4fbede36ef1777cfbeb96a0d5f8d696e0a3517fea5d776b"
+  },
+  {
+    "id": "1765184654809-4mxjdjfnr",
+    "title": "第一性原理 × 刻意練習：超級學習教練",
+    "usageMode": "text",
+    "inputHint": "粘贴一段学习材料",
+    "outputHint": "分阶段提问、理解检验与练习",
+    "usageNotes": "可以粘贴短文试用；完整课程可能超过平台体验轮数。",
+    "sampleInput": "机会成本是选择某个选项时，放弃的最佳替代选项的价值。它不一定表现为金钱，也可能是时间。",
+    "contentSha256": "283862d228ff11f611b90102e67a93b2e2c241f8a782a36f8acfe5d175e81b04"
+  },
+  {
+    "id": "1765220246559-3465o8r8j",
+    "title": "X (Twitter) AI 趨勢觀測專家",
+    "usageMode": "external",
+    "inputHint": "指定观察主题与过去 48 小时窗口",
+    "outputHint": "带真实互动量的 X 热帖清单",
+    "usageNotes": "依赖实时 X 检索与互动数据。请复制到具备 X 搜索能力的 Agent 使用。",
+    "contentSha256": "6cba8ad04a7af52ad19b2e839c47c63e456a5810a43f47bc08645a527ba23e54"
+  },
+  {
+    "id": "1765221705133-xk6no101p",
+    "title": "Web3 風險監測情資專家 (X 平台)",
+    "usageMode": "external",
+    "inputHint": "指定 Web3 风险主题和时间范围",
+    "outputHint": "带证据链接的风险情报列表",
+    "usageNotes": "依赖实时 X 搜索、多账号证据核验。请到支持这些工具的 Agent 使用。",
+    "contentSha256": "e2f3674fde6c04ab085d55eeddcd43a245fd75427943af0adb7d1669b0626b55"
+  },
+  {
+    "id": "1765326003037-i1wgj9b9x",
+    "title": "心理支持與成長教練 (基於心理諮詢理論)",
+    "usageMode": "direct",
+    "inputHint": "描述近期困扰、情绪和生活背景",
+    "outputHint": "非诊断性的情绪整理与自助建议",
+    "usageNotes": "可通过文字交流；这里只做一般支持，不提供诊断或治疗。",
+    "sampleInput": "最近工作任务很多，我总怕自己做不好，想先整理一下压力来自哪里。",
+    "contentSha256": "337720907458b0d9adb4e89937ffd62cec6abca6adc5ea29e91f6bcd5de99ade"
+  },
+  {
+    "id": "1765351890524-lybsrupmx",
+    "title": "新聞解構者：批判性思維閱讀助手 （dia）",
+    "usageMode": "text",
+    "inputHint": "粘贴新闻全文",
+    "outputHint": "事实、逻辑、摘要与批判性追问",
+    "usageNotes": "试用仅分析粘贴文本，不自动检索事实，也不读取附件。",
+    "sampleInput": "示例报道：某社区将在下月试行共享工具借用站。社区负责人称此举可以减少重复购买，但报道未提供预算或居民调查结果。",
+    "contentSha256": "9cef559bccb4da8ac95458ab6e1474c8bff0b2b93b73a85f8c1e57b0ff402d10"
+  },
+  {
+    "id": "1765526477887-x26azehbf",
+    "title": "新媒體故事大綱優化專家",
+    "usageMode": "text",
+    "inputHint": "粘贴文章大纲，可补充平台和读者",
+    "outputHint": "诊断、开头方案与重构大纲",
+    "usageNotes": "粘贴大纲即可，不需要外部工具。",
+    "sampleInput": "主题：第一次当主管\n大纲：1. 什么都自己做；2. 团队开始依赖我；3. 尝试授权；4. 复盘。\n读者：刚升职的年轻人；平台：公众号。",
+    "contentSha256": "96314887d56ba091a1858d82de5fe50c8c89fc5760441a4c987b50de5dddfd72"
+  },
+  {
+    "id": "1765532488261-9ckd005r3",
+    "title": "新媒體高轉發深度文章教練",
+    "usageMode": "text",
+    "inputHint": "粘贴文章大纲和写作要求",
+    "outputHint": "一篇按大纲展开的文章草稿",
+    "usageNotes": "需要具体大纲，避免空输入生成泛泛文章。",
+    "sampleInput": "文章大纲：为什么忙了一天仍觉得没有进展；区分回应消息与推进目标；每天保留一个不被打断的小时。要求：800字，面向初入职场的人。",
+    "contentSha256": "46abccfae67b22f9744c8f550036e2119393b9106faf874454390eaa36a90df8"
+  },
+  {
+    "id": "1768813670891-vknrukj3x",
+    "title": "TypeScript 資料格式化專家 （.websites）",
+    "usageMode": "text",
+    "inputHint": "粘贴工具或资源的名称、网址和资料",
+    "outputHint": "符合指定 schema 的 TypeScript 对象",
+    "usageNotes": "请提供可确认的事实；试用不会打开网址或核验价格。",
+    "sampleInput": "Type 1 Tool\n名称：Example Notes\n网址：https://example.com\n功能：整理个人笔记\n价格：免费\n分类：productivity",
+    "contentSha256": "fae549c229c637e93a4d17ec4e36b04d097cacc420865d8579cb2cd92f47d5aa"
+  },
+  {
+    "id": "1769194530556-qeo6c36d8",
+    "title": "歌詞翻譯與英語學習助手",
+    "usageMode": "text",
+    "inputHint": "粘贴一小段英语歌词",
+    "outputHint": "逐句翻译、词汇、语法与小练习",
+    "usageNotes": "只处理你提供的歌词段落，不搜索或补全整首歌词。",
+    "sampleInput": "以下为自写练习句：I watch the morning light. I leave my worries far behind.",
+    "contentSha256": "643048a731a55c96e1cf1870a69c1663ce1c2eec4454167b6920f305c130708b"
+  },
+  {
+    "id": "1769194543723-et4nuo7i2",
+    "title": "日語歌詞學習助教",
+    "usageMode": "text",
+    "inputHint": "粘贴一小段日语歌词",
+    "outputHint": "中日对照、语法与发音提示",
+    "usageNotes": "只处理你提供的段落，不搜索或补全歌词。",
+    "sampleInput": "以下为自写练习句：朝の光が窓に差す。今日も一歩ずつ歩こう。",
+    "contentSha256": "57aa06a2a1e3643f85830b85cd902748879a74b8b76c668ad58ee0ffb37b61c1"
+  },
+  {
+    "id": "1769194556372-ik7do9ern",
+    "title": "西班牙語歌詞學習助教",
+    "usageMode": "text",
+    "inputHint": "粘贴一小段西班牙语歌词",
+    "outputHint": "中西对照、词汇与语法练习",
+    "usageNotes": "只处理你提供的段落，不搜索或补全歌词。",
+    "sampleInput": "以下为自写练习句：La luz entra por mi ventana. Hoy camino con esperanza.",
+    "contentSha256": "c1ef38faffd372523ea4293aa99360bc4b05926e09469e80ced39ba1440e5ef9"
+  },
+  {
+    "id": "1769194571254-64ovbh64t",
+    "title": "義語：歌詞翻譯與深度學習助手",
+    "usageMode": "text",
+    "inputHint": "粘贴一小段意大利语歌词",
+    "outputHint": "中意对照、语法与学习练习",
+    "usageNotes": "只处理你提供的段落，不搜索或补全歌词。",
+    "sampleInput": "以下为自写练习句：La luce entra dalla finestra. Oggi cammino con calma.",
+    "contentSha256": "1535378b6e2ba3a5fc6be1837ecf8b2ee5dd7993efdfe1c1b417a245f80914b3"
+  },
+  {
+    "id": "1769909184170-9hkfmlag8",
+    "title": "A股趨勢操盤手：專業決策儀表板",
+    "usageMode": "external",
+    "inputHint": "准备行情、均线、筹码和公告数据",
+    "outputHint": "结构化 A 股分析仪表板",
+    "usageNotes": "依赖行情数据和最新公告核验。请到接入行情与搜索工具的 Agent 使用。",
+    "contentSha256": "378bda9e253bea8228ee732c9eb50cede5236d8b6b93a73d276e3d77806307a8"
+  },
+  {
+    "id": "1771130706725-wmfwsrwm8",
+    "title": "PostSoma-2050 內容管理專家",
+    "usageMode": "text",
+    "inputHint": "粘贴标题与页面正文",
+    "outputHint": "Slug、摘要、分类和标签",
+    "usageNotes": "粘贴文本即可；不会读取当前网页或写入网站 CMS。",
+    "sampleInput": "标题：给学习留一点空白\n正文：每天的学习计划不必填满。留出回顾与练习的时间，能帮助我们发现哪些概念还没有真正理解。",
+    "contentSha256": "53b1736c8a3cb55dc0ae0011b8a9c6f5639a48fd86251998022fe684e966c44c"
+  },
+  {
+    "id": "1773572254056-7iqnw5u9i",
+    "title": "專案架構與技術棧解析專家",
+    "usageMode": "external",
+    "inputHint": "在 Agent 中打开完整代码仓库",
+    "outputHint": "技术栈、架构与模块角色分析",
+    "usageNotes": "需要扫描依赖、配置及源码文件。请复制到可读取仓库的编程 Agent 使用。",
+    "contentSha256": "d4cd0f26f8676f2cda391fda907f06b7f3f7eb191042ad86dc8e7127326373cb"
+  },
+  {
+    "id": "1773759742519-twvic2wsg",
+    "title": "實相探測器：項目進度審計專家",
+    "usageMode": "external",
+    "inputHint": "准备进度文档、源码和项目证据",
+    "outputHint": "交叉核验后的项目审计报告",
+    "usageNotes": "需要访问仓库及多份项目文件，单段文本不足以核实实现进度。请到可读取项目的 Agent 使用。",
+    "contentSha256": "7a5fa7c72aaf967fec6ccd5fbe7ea52d5bc76567c2ae764de4390b597d886e18"
+  },
+  {
+    "id": "1775842540330-0nrnsrny0",
+    "title": "源碼導航員：GitHub 專案深度解析助手",
+    "usageMode": "external",
+    "inputHint": "提供 GitHub 仓库并连接 DeepWiki",
+    "outputHint": "项目全貌与源码阅读路线",
+    "usageNotes": "需要 DeepWiki 与仓库访问工具。请在连接这些工具的 Agent 中使用。",
+    "contentSha256": "250ce37e5685995a463de2d8f1366119215c3d0f0198d1cb406491d311f23c6c"
+  },
+  {
+    "id": "1775842676890-7jjidaujw",
+    "title": "Crypto Macro-Rotation Analyst",
+    "usageMode": "external",
+    "inputHint": "指定资产、时间范围并接入市场数据",
+    "outputHint": "宏观状态、资金轮动与风险分析",
+    "usageNotes": "依赖实时行情、资金流、链上及新闻数据。请复制到具备数据检索工具的 Agent 使用。",
+    "contentSha256": "781df8fc78eedda05274e4c4972df6526013b52ead42cf9b38d7d4b33aa17265"
+  },
+  {
+    "id": "1776169283090-b3f7u63d4",
+    "title": "資深的內容管理系統 (CMS) for prompt-kit",
+    "usageMode": "text",
+    "inputHint": "粘贴需要整理的原始 Prompt",
+    "outputHint": "工具名称、说明、分类与标签",
+    "usageNotes": "只生成展示文案，不自动写入数据库。",
+    "sampleInput": "你是一名翻译助手。请把用户输入的中文句子译成自然英语，并给出正式和日常两种版本。",
+    "contentSha256": "bfaab6878008bc444e6cb6e01313c938c6c13bcfcfdde2f33ad0c99c985bfaf7"
+  },
+  {
+    "id": "1776175561977-epp8bkb6d",
+    "title": "Green Book 交付審查員：五大個案模型分析工具",
+    "usageMode": "external",
+    "inputHint": "准备商业论证及 Green Book 指南原文",
+    "outputHint": "带页码引用的交付审查与整改建议",
+    "usageNotes": "要求上传项目文档并核对指南章节／页码。请在支持文档读取和来源检索的 Agent 中使用。",
+    "contentSha256": "113e08b46956b538f0c852f6d6252a0676eb80945ac07f31d2d5f921fdaf7f1e"
+  },
+  {
+    "id": "1776176037229-8c8rujsu7",
+    "title": "高階決策專案簡報協作器",
+    "usageMode": "external",
+    "inputHint": "准备 Project Brief 模板和项目资料",
+    "outputHint": "逐节协作并导出专业 Word 简报",
+    "usageNotes": "完整流程需要多份资料与 Word 文件生成。请复制到支持文档与文件输出的 Agent 使用。",
+    "contentSha256": "47c7121a0d2be33b9cfd0774025fb977bb026a40209a6ec14cdb5c9f5f260f57"
+  },
+  {
+    "id": "1776176399479-nwgfa4264",
+    "title": "專業專案進度與 WBS 規劃專家",
+    "usageMode": "text",
+    "inputHint": "粘贴任务清单、工期、负责人和约束",
+    "outputHint": "WBS、时间安排、关键路径与风险",
+    "usageNotes": "可以用文本表格试用；不会生成可下载的甘特图文件。",
+    "sampleInput": "项目：上线一个小型介绍页\n任务：需求1天（产品）；设计2天（设计）；开发3天（开发）；测试1天（测试）；部署1天（开发）。设计依赖需求，开发依赖设计，测试依赖开发，部署依赖测试。",
+    "contentSha256": "df2960283034f7238967e6ecf59bdbd69e21a3c58a21d88b513dff5b5eb7d454"
+  },
+  {
+    "id": "1776176485111-7klv9wu01",
+    "title": "專案影響力全維度掃描儀",
+    "usageMode": "direct",
+    "inputHint": "描述项目目标、范围及影响对象",
+    "outputHint": "财务、社会、环境等影响扫描表",
+    "usageNotes": "输入项目概况即可开展初步思考；不代表法律合规审查。",
+    "sampleInput": "项目：社区建立共享工具借用站。预算两万元，面向居民，试运行三个月。请扫描可能的正面、负面与意外影响。",
+    "contentSha256": "eca5ef46301731a359cba25e6ba931570e75b8fbf2b38b289ed2c06c5df4f801"
+  },
+  {
+    "id": "1776176805008-bwv9v0pbj",
+    "title": "高階戰略投資組合分析儀 (Strategic Portfolio Health Analyzer)",
+    "usageMode": "external",
+    "inputHint": "准备多项目资料、报告模板及指导文件",
+    "outputHint": "投资组合健康看板与优先行动",
+    "usageNotes": "完整任务需要读取多份商业论证、项目数据与 Teal Book 指导。请到支持文档知识库的 Agent 使用。",
+    "contentSha256": "1d0ff36e18ac00e8e63c15838f3d5f7791a7e7e350295f4a0b94a0ec30bc58c1"
+  },
+  {
+    "id": "1776176918856-njeo2lw8b",
+    "title": "治理級變革管理計劃架構師",
+    "usageMode": "text",
+    "inputHint": "粘贴商业背景、项目数据与人员变化",
+    "outputHint": "沟通、培训、干系人与变革风险计划",
+    "usageNotes": "可用粘贴文本体验规划；不核验外部指南章节或执行计划。",
+    "sampleInput": "项目：客服团队从邮件切换到统一工单系统。20名员工，六周后上线，担忧学习成本。目标：减少遗漏；培训资源：每周两小时；目前：完成选型。",
+    "contentSha256": "d7e9f77e31b09c5eb647b0f6b9ad537df8a6c737c26a9cebcdcf5db0f47fb1b9"
+  },
+  {
+    "id": "1778008045701-650txgkvl",
+    "title": "市場熱點（Perplexity）",
+    "usageMode": "external",
+    "inputHint": "指定报道开始和结束时间",
+    "outputHint": "跨资产新闻摘要与来源链接",
+    "usageNotes": "需要实时新闻搜索和原始来源核验。请到支持搜索的 Agent 使用。",
+    "contentSha256": "6ea1a7cf5699f7b718ea8ea20312b9c7af73757a5a4ecc7a569f62818223943a"
+  },
+  {
+    "id": "1778008153647-111beeihg",
+    "title": "社交平台熱點（Grok）",
+    "usageMode": "external",
+    "inputHint": "指定 X 平台观察时间窗口",
+    "outputHint": "跨资产热门讨论与情绪观察",
+    "usageNotes": "需要实时 X 检索与账号信息。请到支持 X 搜索的 Agent 使用。",
+    "contentSha256": "3aaef59347a986a6a994464f552336a704f0e19b6ec1127ee4dc03ad39e0c2bb"
+  },
+  {
+    "id": "1778523194065-dz7kgt5m8",
+    "title": "圖書資料管理員 ( personal library)",
+    "usageMode": "external",
+    "inputHint": "上传书籍封面并允许资料检索",
+    "outputHint": "书名、ISBN、分类等结构化元数据",
+    "usageNotes": "依赖图片识别与联网检索。请在支持图片和搜索的 Agent 中使用。",
+    "contentSha256": "8b937eb0539c5d9179275591c07b1a159438cdb684992395be774858c0116b71"
+  },
+  {
+    "id": "1778526540564-xb76vvduo",
+    "title": "AI 指令逆向工程分析大師：文案風格提取與模板生成工具",
+    "usageMode": "text",
+    "inputHint": "粘贴要分析的文章正文",
+    "outputHint": "风格分析与可复用写作模板",
+    "usageNotes": "可直接分析粘贴文本，不需要图片或网页工具。",
+    "sampleInput": "标题：一个小时的安静\n正文：今天我把手机放在另一个房间。起初总想去看，后来终于把那封拖了三天的邮件写完。原来我缺的不是时间，而是一小段不用回应任何人的空白。",
+    "contentSha256": "7f8aa9c771cac65cc3f1d3217ffdcebaa7bca393354aae10ff1cc87a050be852"
+  },
+  {
+    "id": "1778526615828-yfu184wik",
+    "title": "視覺逆向工程：精準圖像設計參數提取與 RTF 模板化工具",
+    "usageMode": "external",
+    "inputHint": "上传参考图像",
+    "outputHint": "设计参数分析与图像生成模板",
+    "usageNotes": "需要图片输入及像素／颜色测量工具。请复制到支持视觉分析和图像工具的 Agent 使用。",
+    "contentSha256": "fbe9be68ba72a33fc19d4f4b1712036172eb3116ed67b7891beec7cab4d9257f"
+  },
+  {
+    "id": "1778526737062-h9r0xcgpk",
+    "title": "網頁基因解碼器：全自動網頁逆向工程與 RTF 模板生成工具",
+    "usageMode": "external",
+    "inputHint": "提供目标网页、截图或完整 HTML",
+    "outputHint": "网页设计分析与可复用模板",
+    "usageNotes": "原任务涉及页面视觉、交互和实现分析。请到可浏览网页或读取截图／代码的 Agent 使用。",
+    "contentSha256": "f5853cd50919d71759dba5270241f3b1f4a776e7fd6a579cbd3b92ab00cc5bab"
+  },
+  {
+    "id": "1778526860846-ec6ngmhiq",
+    "title": "影視級影片解碼專家：多維度分析與 Veo 3 指令生成器",
+    "usageMode": "external",
+    "inputHint": "上传短视频或视频截图",
+    "outputHint": "镜头分析与中英文视频生成指令",
+    "usageNotes": "需要视觉输入，声音推断还需核验原视频。请到支持视频／图像的 Agent 使用。",
+    "contentSha256": "ea1ebea715772fa64e3a45011517b37625706874293b2f5fcc3a943bff31b876"
+  },
+  {
+    "id": "1779214734401-2vqmsfmoy",
+    "title": "Next.js SEO & AEO 自動化佈署專家",
+    "usageMode": "external",
+    "inputHint": "在编程 Agent 中打开项目和配置",
+    "outputHint": "适配项目的 SEO 与 AEO 文件",
+    "usageNotes": "完整任务需要项目读取、文件修改与部署验证。请复制到可操作代码仓库的 Agent 使用。",
+    "contentSha256": "015bbcf7bff6568b294c45adad5c00398be9393fea8e8b7173ce54bfa59d8882"
+  },
+  {
+    "id": "1782330476876-zlrt67tyf",
+    "title": "AI 架构重构与 2026 技术栈效能审计器",
+    "usageMode": "external",
+    "inputHint": "在编程 Agent 中打开完整代码库",
+    "outputHint": "技术栈证据、对比与迁移建议",
+    "usageNotes": "需要扫描源码、配置及依赖，并核验技术资料。请到可读取仓库和联网的 Agent 使用。",
+    "contentSha256": "cdc5e70b8eb3eb170958c3c3a941af7ed014f958561cc247580100e925c00cb4"
+  },
+  {
+    "id": "1783474367972-abho2x0xh",
+    "title": "聖經書卷速讀解碼器：六步建立零基礎認知框架",
+    "usageMode": "direct",
+    "inputHint": "输入一个圣经书卷名称",
+    "outputHint": "六步书卷认知框架",
+    "usageNotes": "书卷名称即可开始；精确年代、词频与引文需另行核对，不代表查阅了参考链接。",
+    "sampleInput": "马可福音",
+    "contentSha256": "643b48bee5da7e087feb543475f71594b583e8de8557e608aa4710071a23abc8"
+  },
+  {
+    "id": "1784018209191-h742ifd08",
+    "title": "深度意大利語詞彙大師 (Master Italian Lexicographer)",
+    "usageMode": "direct",
+    "inputHint": "输入一个意大利语单词",
+    "outputHint": "释义、变位、搭配、词源与练习",
+    "usageNotes": "输入单词即可；文化引用与词源细节需自行核对。",
+    "sampleInput": "magari",
+    "contentSha256": "e37a021ec5ba3bee3235b9be96fc49211db283a168663994cf8831c278e3b83a"
+  },
+  {
+    "id": "1784126575494-5mryirh7c",
+    "title": "斷捨離生活顧問：5分鐘減法生活引導器",
+    "usageMode": "direct",
+    "inputHint": "描述一个想整理的小角落或物品",
+    "outputHint": "逐步整理建议与五分钟微任务",
+    "usageNotes": "不需要图片或完整书籍，描述当前处境即可。",
+    "sampleInput": "我想先整理办公桌，但看到杂物很多就不想开始。今天只有五分钟。",
+    "contentSha256": "37c02482efc5e83159e415760656d4eeb944ff66f8f8d8f438232f7d418180bd"
+  }
+]

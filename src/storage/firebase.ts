@@ -133,6 +133,11 @@ function docToPrompt(docData: any): Prompt {
     isDeleted: data.isDeleted ?? false,
     sampleOutput: data.sampleOutput,
     sampleInput: data.sampleInput,
+    usageMode: data.usageMode,
+    inputHint: data.inputHint,
+    outputHint: data.outputHint,
+    usageNotes: data.usageNotes,
+    trialInputMaxChars: data.trialInputMaxChars,
   };
 }
 
@@ -370,7 +375,8 @@ class FirebaseService {
    * 监听 Firestore 实时更新
    */
   subscribeToPrompts(
-    callback: (prompts: Prompt[]) => void
+    callback: (prompts: Prompt[]) => void,
+    onError?: (error: unknown) => void
   ): (() => void) | null {
     if (!isFirebaseEnabled || !firestore) {
       // Non-Firebase mode: register listener + do one initial load.
@@ -379,7 +385,7 @@ class FirebaseService {
       this.localListeners.add(callback);
 
       // Initial load so the UI gets data immediately
-      indexedDB.getAllPrompts().then(callback).catch(console.error);
+      indexedDB.getAllPrompts().then(callback).catch(error => { console.error(error); onError?.(error); });
 
       // Return cleanup function that removes this listener
       return () => {
@@ -402,12 +408,13 @@ class FirebaseService {
         (error) => {
           console.error('Firestore subscription error:', error);
           // 失败时从 IndexedDB 获取
-          indexedDB.getAllPrompts().then(callback).catch(console.error);
+          indexedDB.getAllPrompts().then(prompts => { callback(prompts); onError?.(error); }).catch(onError ?? console.error);
         }
       );
       return unsubscribe;
     } catch (error) {
       console.error('Failed to subscribe to Firestore:', error);
+      onError?.(error);
       return null;
     }
   }
@@ -547,4 +554,3 @@ class FirebaseService {
 export const firebaseService = new FirebaseService();
 
 // 导出初始化函数
-

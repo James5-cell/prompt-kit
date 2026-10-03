@@ -28,10 +28,10 @@ export default function Layout({ children }: LayoutProps) {
 
   // ── Main nav: RI line = inactive, RI fill = active ─────────────────────
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard',      badge: '精选', icon: 'ri:dashboard-3-line',  iconActive: 'ri:dashboard-3-fill'  },
-    { path: '/prompts',   label: 'Prompt Library', badge: '全量', icon: 'ri:book-shelf-line',   iconActive: 'ri:book-shelf-fill'   },
+    { path: '/dashboard', label: '精选首页',      badge: '精选', icon: 'ri:dashboard-3-line',  iconActive: 'ri:dashboard-3-fill'  },
+    { path: '/prompts',   label: '全部指令', badge: '全量', icon: 'ri:book-shelf-line',   iconActive: 'ri:book-shelf-fill'   },
     { path: '/about',     label: 'About & E-E-A-T', icon: 'ri:information-line', iconActive: 'ri:information-fill' },
-    { path: '/settings',  label: 'Settings',        icon: 'ri:settings-4-line',   iconActive: 'ri:settings-4-fill'   },
+    { path: '/settings',  label: '模型设置',        icon: 'ri:settings-4-line',   iconActive: 'ri:settings-4-fill'   },
   ];
 
   if (isAdmin) {
@@ -47,7 +47,9 @@ export default function Layout({ children }: LayoutProps) {
           <h1>Prompt Kit</h1>
         </div>
         <button 
-          className="menu-toggle" 
+          className="menu-toggle"
+          aria-label={isMobileMenuOpen ? '关闭导航' : '打开导航'}
+          aria-expanded={isMobileMenuOpen}
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? <X size={ICON_SIZE.lg} /> : <Menu size={ICON_SIZE.lg} />}
@@ -220,7 +222,7 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content Area with Page transitions */}
-      <main className="main-content">
+      <main id="main-content" className="main-content">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
