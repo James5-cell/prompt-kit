@@ -39,8 +39,6 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.pk-mascot-dock[data-mode="rest"] .pk-mascot-button,
-.pk-mascot-dock[data-mode="sleep"] .pk-mascot-button { height: 70%; }
 .pk-mascot-button:focus-visible { outline: 2px solid #8edbc2; outline-offset: 2px; border-radius: 50%; }
 .pk-mascot-dock[data-mode="shy_hide"] .pk-mascot-button,
 .pk-mascot-dock[data-mode="shy_wait"] .pk-mascot-button,
