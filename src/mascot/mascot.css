@@ -46,16 +46,16 @@
 .pk-mascot-stage,
 .pk-mascot-core { position: absolute; inset: 0; display: block; }
 .pk-mascot-stage { filter: drop-shadow(0 10px 18px rgba(0,0,0,.22)); }
-.pk-mascot-core { transform-origin: 50% 88%; animation: pk-mascot-breathe 3.4s ease-in-out infinite; }
-.pk-mascot-plate { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
-.pk-mascot-sprout { position: absolute; z-index: 2; display: block; animation: pk-mascot-sprout 3.4s ease-in-out infinite; }
+.pk-mascot-core { contain: layout style; will-change: transform; transform-origin: 50% 88%; animation: pk-mascot-breathe 3.4s ease-in-out infinite; }
+.pk-mascot-plate { transform: translateZ(0); position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+.pk-mascot-sprout { will-change: transform; position: absolute; z-index: 2; display: block; animation: pk-mascot-sprout 3.4s ease-in-out infinite; }
 .pk-mascot-sprout img,
 .pk-mascot-bubble img,
 .pk-mascot-sparkles img { display: block; width: 100%; height: auto; object-fit: contain; }
 .pk-mascot-bubble,
 .pk-mascot-sparkles { position: absolute; display: block; }
 .pk-mascot-eyes { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; overflow: visible; }
-.pk-mascot-eye { animation: pk-mascot-blink 5.2s ease-in-out infinite; }
+.pk-mascot-eye { position: absolute; display: block; transform-origin: center; will-change: transform; animation: pk-mascot-blink 5.2s ease-in-out infinite; }
 .pk-mascot-eye:nth-child(2) { animation-delay: 120ms; }
 .pk-mascot-eye-halo { fill: #f9f8f5; stroke: #242423; stroke-width: 13; }
 .pk-mascot-eye-moon { fill: #111110; }
@@ -104,3 +104,6 @@
     transition-duration: 1ms !important;
   }
 }
+
+.pk-mascot-eye svg { display: block; width: 100%; height: 100%; }
+.pk-mascot-dock[data-render-paused="true"] * { animation-play-state: paused !important; }

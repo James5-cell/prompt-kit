@@ -3,13 +3,13 @@ export const mascotConfig = {
   version: "1.0.0-prompt-kit",
   storageKey: "postsoma-prompt-kit-mascot-v1",
   core: {
-    light: "/mascot/core/plate_light.png",
-    dark: "/mascot/core/plate_dark.png",
+    light: "/mascot/optimized/plate_light.webp",
+    dark: "/mascot/optimized/plate_dark.webp",
     width: 1122,
     height: 1228,
     sprout: {
-      light: "/mascot/core/sprout_light.png",
-      dark: "/mascot/core/sprout_dark.png",
+      light: "/mascot/optimized/sprout_light.webp",
+      dark: "/mascot/optimized/sprout_dark.webp",
       left: "43.94%", top: "0%", displayWidth: "12.03%", displayHeight: "11.16%",
       pivot: "48.74% 85.4%",
     },
@@ -20,12 +20,12 @@ export const mascotConfig = {
   },
   slots: {
     bubble: {
-      light: "/mascot/skins/prompt-kit/bubble_clean.png", dark: "/mascot/skins/prompt-kit/bubble_dark.png",
+      light: "/mascot/optimized/bubble_clean.webp", dark: "/mascot/optimized/bubble_dark.webp",
       right: "2%", top: "2%", width: "32%", zIndex: 3, pivot: "50% 50%", rotation: "rotate(4deg)",
       behavior: { follow_breath: true, on_click: "prompt_pulse", on_shock: "rattle" },
     },
     sparkles: {
-      light: "/mascot/skins/prompt-kit/sparkles_clean.png", dark: "/mascot/skins/prompt-kit/sparkles_dark.png",
+      light: "/mascot/optimized/sparkles_clean.webp", dark: "/mascot/optimized/sparkles_dark.webp",
       left: "4%", top: "6%", width: "18%", zIndex: 4, pivot: "50% 50%", rotation: "rotate(-6deg)",
       behavior: { follow_breath: true, on_antic: "draft_spark" },
     },

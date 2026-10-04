@@ -138,8 +138,10 @@ export class MascotEngine {
       this.dirty = true;
       return;
     }
-    if (this.view.mode === "shy_hide" && now >= this.phaseUntil) {
-      this.enterShyWait(now);
+    // Shy phases own their entire transition, not generic interrupt completion.
+    if (this.view.mode === "shy") return;
+    if (this.view.mode === "shy_hide") {
+      if (now >= this.phaseUntil) this.enterShyWait(now);
       return;
     }
     if (this.view.mode === "shy_wait") {
