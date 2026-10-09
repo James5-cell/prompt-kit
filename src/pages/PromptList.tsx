@@ -638,7 +638,6 @@ export default function PromptList() {
                       aria-label={canTryPrompt(prompt) ? '在线试用' : '查看外部 Agent 使用指南'}
                     >
                       <Zap size={14} />
-                      <span className="text-xs">{canTryPrompt(prompt) ? "试用" : "使用指南"}</span>
                     </Link>
                     <button
                       className={`btn-secondary icon-action-btn copy-action-btn ${copiedId === prompt.id ? 'copied' : ''}`}
