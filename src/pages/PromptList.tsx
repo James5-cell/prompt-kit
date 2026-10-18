@@ -1,7 +1,13 @@
 import { promptSearchScore } from '../utils/promptSearch';
 import { canTryPrompt, getUsageMode, USAGE_LABELS } from '../utils/promptUsage';
+import { getPromptSummary } from '../utils/promptDisplay';
+import { buildReturnTo } from '../utils/returnTo';
+import {
+  getPromptCategoryMeta,
+  isSamePromptCategory,
+} from '../config/categoryMeta';
 import { useEffect, useState, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon as RiIcon } from '@iconify/react';
 import { 
   Eye, 
@@ -13,45 +19,26 @@ import {
   Trash2, 
   Search, 
   ChevronDown, 
-  ChevronUp,
+  X,
   BookOpen,
-  CornerDownRight,
-  Shuffle,
-  ArrowRight,
+  SlidersHorizontal,
 } from 'lucide-react';
-import { ICON_SIZE } from '../config/iconSizes';
 import { type Prompt, type Tag, type PromptStatus } from '../types';
 import { promptService, isPublishedStatus } from '../services/promptService';
 import { tagService } from '../services/tagService';
 import { useAuth } from '../auth/AuthContext';
 import LoginModal from '../components/LoginModal';
-import ReactMarkdown from 'react-markdown';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import SEOHead from '../components/SEOHead';
 import './PromptList.css';
 
-// ── Category metadata: iconName (Iconify RI) + label + accent color ────────────
-const CATEGORY_MAP: Record<string, { label: string; iconName: string; color: string; class: string }> = {
-  dev:         { label: 'Development',  iconName: 'ri:terminal-box-line',  color: 'var(--color-dev)',         class: 'theme-dev' },
-  development: { label: 'Development',  iconName: 'ri:terminal-box-line',  color: 'var(--color-dev)',         class: 'theme-dev' },
-  writing:     { label: 'Writing',      iconName: 'ri:quill-pen-line',      color: 'var(--color-writing)',     class: 'theme-writing' },
-  finance:     { label: 'Finance',      iconName: 'ri:line-chart-line',     color: 'var(--color-finance)',     class: 'theme-finance' },
-  learning:    { label: 'Learning',     iconName: 'ri:book-read-line',      color: 'var(--color-learning)',    class: 'theme-learning' },
-  thinking:    { label: 'Thinking',     iconName: 'ri:brain-line',          color: 'var(--color-thinking)',    class: 'theme-thinking' },
-  tools:       { label: 'Tools',        iconName: 'ri:tools-line',          color: 'var(--color-tools)',       class: 'theme-tools' },
-  translation: { label: 'Translation',  iconName: 'ri:translate-2',         color: 'var(--color-translation)', class: 'theme-translation' },
-};
-
-const getCategoryMeta = (cat: string) => {
-  const key = cat.toLowerCase();
-  if (CATEGORY_MAP[key]) return CATEGORY_MAP[key];
-  return { label: cat, iconName: 'ri:bookmark-line', color: 'var(--primary)', class: 'theme-default' };
-};
-
-const TAG_SHOW_LIMIT = 10;
+const TAG_SHOW_LIMIT = 7;
 
 export default function PromptList() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Preserve q / category / tags / usage so detail-page "back" restores filters.
+  const returnTo = buildReturnTo(location.pathname, location.search);
   const [pendingTrialId, setPendingTrialId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -105,15 +92,23 @@ export default function PromptList() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showAllTags, setShowAllTags]       = useState(false);
 
+  // Filter panel is collapsible on mobile (collapsed by default) and always
+  // expanded on desktop. Track the breakpoint so ARIA state stays accurate.
+  const [filtersOpen, setFiltersOpen]         = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const applyViewport = () => setIsMobileViewport(mq.matches);
+    applyViewport();
+    mq.addEventListener('change', applyViewport);
+    return () => mq.removeEventListener('change', applyViewport);
+  }, []);
+
   // UI micro-state
   const [copiedId, setCopiedId]     = useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
-
-  // Random pick state
-  const RANDOM_QUEUE_SIZE = 5;
-  const RANDOM_MIN_POOL   = 5;
-  const [randomPick, setRandomPick]   = useState<Prompt | null>(null);
-  const [randomQueue, setRandomQueue] = useState<string[]>([]); // FIFO of recently-seen IDs
 
   // ── Real-time subscriptions ───────────────────────────────
   useEffect(() => {
@@ -151,16 +146,9 @@ export default function PromptList() {
 
     if (selectedUsage !== 'all') result = result.filter(p => getUsageMode(p) === selectedUsage);
 
-    // Category filter — case-insensitive with dev/development alias
+    // URL values stay unchanged; shared metadata handles case and aliases.
     if (selectedCategory) {
-      const catLower = selectedCategory.toLowerCase();
-      result = result.filter(p => {
-        const pCat = (p.category ?? '').toLowerCase();
-        if (catLower === 'dev' || catLower === 'development') {
-          return pCat === 'dev' || pCat === 'development';
-        }
-        return pCat === catLower;
-      });
+      result = result.filter(p => isSamePromptCategory(p.category, selectedCategory));
     }
 
     result = result.filter(p => promptSearchScore(p, searchQuery) > 0);
@@ -218,38 +206,6 @@ export default function PromptList() {
     }
   }
 
-  const toggleExpand = (id: string) =>
-    setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
-
-  /**
-   * Random Prompt — opens a preview modal.
-   * Maintains a FIFO queue of the last RANDOM_QUEUE_SIZE IDs to avoid
-   * showing the same prompt twice in a row. Falls back to full pool
-   * if the candidate pool shrinks below RANDOM_MIN_POOL.
-   */
-  const handleRandomPrompt = () => {
-    const fullPool = prompts.filter(p =>
-      !isAdmin ? isPublishedStatus(p.status) : true
-    );
-    if (!fullPool.length) return;
-
-    // Exclude recently-seen IDs (unless pool would be too small)
-    const candidate = fullPool.length > RANDOM_MIN_POOL
-      ? fullPool.filter(p => !randomQueue.includes(p.id))
-      : fullPool;
-
-    const pool = candidate.length > 0 ? candidate : fullPool;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-
-    // Update FIFO queue
-    setRandomQueue(prev => {
-      const next = [...prev.filter(id => id !== pick.id), pick.id];
-      return next.slice(-RANDOM_QUEUE_SIZE);
-    });
-
-    setRandomPick(pick);
-  };
-
   // ── Derived / computed values ──────────────────────────────
   const uniqueCategories = Array.from(
     new Set(prompts.map(p => p.category).filter(Boolean))
@@ -264,12 +220,7 @@ export default function PromptList() {
       if (selectedAdminStatus === 'private'   && p.status !== 'private')   return false;
     }
     if (selectedCategory) {
-      const pCat = (p.category ?? '').toLowerCase();
-      const sCat = selectedCategory.toLowerCase();
-      const match = (sCat === 'dev' || sCat === 'development')
-        ? (pCat === 'dev' || pCat === 'development')
-        : pCat === sCat;
-      if (!match) return false;
+      if (!isSamePromptCategory(p.category, selectedCategory)) return false;
     }
     return true;
   });
@@ -307,6 +258,34 @@ export default function PromptList() {
   const hiddenTagCount = allAggregatedTags.length - TAG_SHOW_LIMIT;
 
   const isFilterActive = !!(searchQuery || activeTagNames.length > 0 || selectedCategory || selectedUsage !== 'all');
+
+  // Number of active filter conditions (search / category / each tag / usage).
+  const activeFilterCount =
+    (searchQuery ? 1 : 0) +
+    (selectedCategory ? 1 : 0) +
+    activeTagNames.length +
+    (selectedUsage !== 'all' ? 1 : 0);
+
+  // Compact human-readable summary of the selected conditions.
+  const filtersExpanded = !isMobileViewport || filtersOpen;
+
+  // Clears every URL-backed condition (q / category / tags / usage).
+  const clearFilters = () => setSearchParams(new URLSearchParams(), { replace: true });
+
+  const removeSearch = () => setSearchQuery('');
+  const removeCategory = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('category');
+    setSearchParams(next, { replace: true });
+  };
+  const removeUsage = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('usage');
+    setSearchParams(next, { replace: true });
+  };
+  const removeTag = (tagName: string) => {
+    updateFilters(selectedCategory, activeTagNames.filter(name => name !== tagName));
+  };
 
   // ── Render ─────────────────────────────────────────────────
   return (
@@ -349,97 +328,129 @@ export default function PromptList() {
         }}
       />
 
-      {/* ── Row 1: Title + Action Buttons ──────────────────────── */}
+      {/* ── Row 1: Title + admin-only Action Buttons ───────────── */}
       <div className="page-header">
         <div>
           <h1>全部指令</h1>
-          <p className="page-subheader">按使用条件筛选：轻量文本在线试用，复杂任务复制到其他 Agent。</p>
+          <p className="page-subheader">找到适合的指令，直接试用或复制使用。</p>
         </div>
-        <div className="header-actions">
-          {/* Random Prompt — ghost/outline style, lightweight */}
-          <button
-            className="btn-random"
-            onClick={handleRandomPrompt}
-            title="Discover a random prompt"
-            disabled={prompts.length === 0}
-          >
-            <Shuffle size={13} style={{ marginRight: '6px' }} />
-            Random
-          </button>
-          {isAdmin && (
+        {isAdmin ? (
+          <div className="header-actions">
             <Link to="/prompts/new" className="btn-primary">
-              <Plus size={14} style={{ marginRight: '4px' }} /> New Prompt
+              <Plus size={14} style={{ marginRight: '4px' }} /> 新建指令
             </Link>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
 
-      {/* ── Row 2: Search Bar ─────────────────────────────────── */}
-      <div className="search-bar-container">
-        <div className="search-input-wrapper">
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            aria-label="搜索指令"
-            placeholder="搜索名称、标签、用途，可输入多个关键词…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
+      {/* ── Row 2: Compact search + result count ───────────────── */}
+      <div className="library-toolbar">
+        <div className="search-bar-container">
+          <div className="search-input-wrapper">
+            <Search size={16} className="search-icon" />
+            <input
+              type="text"
+              aria-label="搜索指令"
+              placeholder="搜索名称、标签或用途…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          {isAdmin ? (
+            <select
+              aria-label="按发布状态筛选"
+              className="admin-status-select"
+              value={selectedAdminStatus}
+              onChange={e => setSelectedAdminStatus(e.target.value as PromptStatus | 'all')}
+            >
+              <option value="all">全部状态</option>
+              <option value="published">已发布</option>
+              <option value="draft">草稿</option>
+              <option value="private">私密</option>
+            </select>
+          ) : null}
         </div>
-        {isAdmin && (
-          <select
-            className="admin-status-select"
-            value={selectedAdminStatus}
-            onChange={e => setSelectedAdminStatus(e.target.value as any)}
-          >
-            <option value="all">All Status</option>
-            <option value="published">🌐 Published</option>
-            <option value="draft">📝 Drafts</option>
-            <option value="private">🔒 Private</option>
-          </select>
-        )}
+        <span className="library-result-count" aria-live="polite">
+          {isLoading ? '正在读取…' : `${filteredPrompts.length} 条指令`}
+        </span>
       </div>
 
       {/* ── Row 3: Filter Panel ────────────────────────────────── */}
       {(uniqueCategories.length > 0 || allAggregatedTags.length > 0) && (
         <div className="filter-panel card-base">
 
-          <div className="filter-group">
-            <p className="filter-title">使用条件</p>
-            <div className="flex flex-wrap gap-2">
-              {[['all', '全部'], ...Object.entries(USAGE_LABELS)].map(([mode, label]) => <button key={mode} className={`btn-secondary min-h-11 ${selectedUsage === mode ? 'border-cyan-300 text-cyan-300' : ''}`} aria-pressed={selectedUsage === mode} onClick={() => setSelectedUsage(mode)}>{label}</button>)}
+          {/* Mobile-only collapse toggle (always-expanded header on desktop) */}
+          <div className="filter-panel-header">
+            <button
+              type="button"
+              className="filter-toggle"
+              aria-expanded={filtersExpanded}
+              aria-controls="prompt-filter-panel"
+              aria-label={
+                isFilterActive
+                  ? `筛选条件，已选 ${activeFilterCount} 项，${filtersExpanded ? '点击收起' : '点击展开'}`
+                  : `筛选条件，${filtersExpanded ? '点击收起' : '点击展开'}`
+              }
+              onClick={() => setFiltersOpen(open => !open)}
+            >
+              <SlidersHorizontal size={15} className="filter-toggle-icon" aria-hidden="true" />
+              <span className="filter-toggle-label">筛选条件</span>
+              <span className={`filter-toggle-summary ${isFilterActive ? 'is-active' : ''}`}>
+                {isFilterActive ? `已选 ${activeFilterCount} 项` : '分类、使用条件与标签'}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`filter-toggle-chevron ${filtersExpanded ? 'is-open' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          <div id="prompt-filter-panel" className="filter-panel-body" hidden={!filtersExpanded}>
+
+          <div className="filter-toolbar-row">
+            <span className="filter-toolbar-label">使用条件</span>
+            <div className="filter-choice-row">
+              {[['all', '全部'], ...Object.entries(USAGE_LABELS)].map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`filter-choice ${selectedUsage === mode ? 'active' : ''}`}
+                  aria-pressed={selectedUsage === mode}
+                  onClick={() => setSelectedUsage(mode)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
           {/* Category Filter */}
           {uniqueCategories.length > 0 && (
-            <div className="filter-group">
-              <p className="filter-title">分类</p>
-              <div className="category-cards-grid">
+            <div className="filter-toolbar-row">
+              <span className="filter-toolbar-label">分类</span>
+              <div className="filter-choice-row">
                 <button
-                  className={`category-card-btn ${!selectedCategory ? 'active' : ''}`}
+                  type="button"
+                  className={`filter-choice ${!selectedCategory ? 'active' : ''}`}
+                  aria-pressed={!selectedCategory}
                   onClick={() => updateFilters(null, [])}
                 >
-                  <span className="cat-btn-icon"><BookOpen size={14} /></span>
-                  <span className="cat-btn-label">全部分类</span>
+                  <BookOpen size={13} /> 全部
                 </button>
                 {uniqueCategories.sort().map(cat => {
-                  const meta = getCategoryMeta(cat);
-                  const catNorm = cat.toLowerCase();
-                  const selNorm = selectedCategory?.toLowerCase();
-                  const isActive = selNorm === catNorm ||
-                    ((selNorm === 'dev' || selNorm === 'development') && (catNorm === 'dev' || catNorm === 'development'));
+                  const meta = getPromptCategoryMeta(cat);
+                  const isActive = !!selectedCategory && isSamePromptCategory(cat, selectedCategory);
                   return (
                     <button
                       key={cat}
-                      className={`category-card-btn ${meta.class} ${isActive ? 'active' : ''}`}
+                      type="button"
+                      className={`filter-choice ${isActive ? 'active' : ''}`}
+                      aria-pressed={isActive}
                       onClick={() => updateFilters(cat, [])}
-                      style={isActive ? { borderColor: meta.color, boxShadow: `0 0 10px ${meta.color}20` } : undefined}
                     >
-                      <span className="cat-btn-icon" style={{ color: meta.color }}>
-                        <RiIcon icon={meta.iconName} width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-                      </span>
-                      <span className="cat-btn-label">{meta.label}</span>
+                      <RiIcon icon={meta.icon} width={13} height={13} style={{ color: meta.color }} />
+                      {meta.label}
                     </button>
                   );
                 })}
@@ -447,21 +458,22 @@ export default function PromptList() {
             </div>
           )}
 
-          {/* Tag Filter — inline chips, always visible */}
+          {/* Tags: one compact row, highest-frequency seven by default. */}
           {allAggregatedTags.length > 0 && (
-            <div className="filter-group-tag">
+            <div className="filter-tag-row">
               <div className="filter-title-row">
-                <p className="filter-title">标签</p>
-                {activeTagNames.length > 0 && (
-                  <button
-                    className="tag-clear-inline"
-                    onClick={() => updateFilters(selectedCategory, [])}
-                  >
-                    ✕ Clear
-                  </button>
-                )}
+                <span className="filter-toolbar-label">标签</span>
+                <button
+                  type="button"
+                  className="tag-show-more"
+                  aria-expanded={showAllTags}
+                  onClick={() => setShowAllTags(open => !open)}
+                >
+                  {showAllTags ? '收起标签' : `更多标签 (${Math.max(0, hiddenTagCount)})`}
+                  <ChevronDown className={showAllTags ? 'is-open' : ''} size={13} />
+                </button>
               </div>
-              <div className="tag-chips-inline">
+              <div className={`tag-chips-inline ${showAllTags ? 'is-expanded' : ''}`}>
                 {visibleTagOptions.map(tag => {
                   const isSelected = activeTagNames.includes(tag.name);
                   return (
@@ -475,33 +487,56 @@ export default function PromptList() {
                       }
                       onClick={() => toggleTagName(tag.name)}
                     >
-                      {isSelected && <Check size={10} style={{ marginRight: '3px', flexShrink: 0 }} />}
+                      {isSelected && <Check size={10} aria-hidden="true" />}
                       {tag.name}
                       <span className="tag-chip-count">{tag.count}</span>
                     </button>
                   );
                 })}
-                {!showAllTags && hiddenTagCount > 0 && (
-                  <button
-                    type="button"
-                    className="tag-show-more"
-                    onClick={() => setShowAllTags(true)}
-                  >
-                    +{hiddenTagCount} more
-                  </button>
-                )}
               </div>
             </div>
           )}
+          </div>
         </div>
       )}
 
-      {/* ── Result count (shown only when a filter is active) ─── */}
+      {/* ── Active-filter summary: each condition is individually removable ── */}
       {isFilterActive && (
-        <div className="results-count-row">
-          <span className="results-count-text">
-            {filteredPrompts.length} result{filteredPrompts.length !== 1 ? 's' : ''}
-          </span>
+        <div className="active-filter-bar" aria-label="当前筛选摘要">
+          <div className="active-filter-items">
+            <span className="active-filter-label">当前筛选</span>
+            {searchQuery && (
+              <button type="button" className="active-filter-chip" onClick={removeSearch}>
+                搜索：{searchQuery}
+                <X size={12} aria-hidden="true" />
+                <span className="sr-only">移除搜索条件</span>
+              </button>
+            )}
+            {selectedCategory && (
+              <button type="button" className="active-filter-chip" onClick={removeCategory}>
+                {getPromptCategoryMeta(selectedCategory).label}
+                <X size={12} aria-hidden="true" />
+                <span className="sr-only">移除分类条件</span>
+              </button>
+            )}
+            {selectedUsage !== 'all' && (
+              <button type="button" className="active-filter-chip" onClick={removeUsage}>
+                {USAGE_LABELS[selectedUsage as keyof typeof USAGE_LABELS] ?? selectedUsage}
+                <X size={12} aria-hidden="true" />
+                <span className="sr-only">移除使用条件</span>
+              </button>
+            )}
+            {activeTagNames.map(tagName => (
+              <button key={tagName} type="button" className="active-filter-chip" onClick={() => removeTag(tagName)}>
+                #{tagName}
+                <X size={12} aria-hidden="true" />
+                <span className="sr-only">移除标签 {tagName}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className="active-filter-clear" onClick={clearFilters}>
+            清除全部
+          </button>
         </div>
       )}
 
@@ -511,44 +546,40 @@ export default function PromptList() {
       <div className="prompts-grid" key={selectedCategory ?? 'all'}>
         {isLoading ? null : filteredPrompts.length > 0 ? (
           filteredPrompts.map(prompt => {
-            const isExpanded   = !!expandedIds[prompt.id];
-            const categoryMeta = prompt.category ? getCategoryMeta(prompt.category) : null;
+            const categoryMeta = getPromptCategoryMeta(prompt.category);
 
             return (
               <motion.div
                 key={prompt.id}
-                className={`prompt-card-v2 ${isExpanded ? 'is-expanded' : ''}`}
-                style={isExpanded && categoryMeta ? { borderColor: categoryMeta.color } : undefined}
+                className="prompt-card-v2"
               >
                 {/* Header */}
                 <div className="prompt-card-header">
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                      {categoryMeta && (
-                        <span
-                          className={`card-cat-badge ${categoryMeta.class}`}
-                          style={{ color: categoryMeta.color, borderColor: categoryMeta.color }}
-                        >
-                          {categoryMeta.iconName && (
-                            <RiIcon
-                              icon={categoryMeta.iconName}
-                              width={10}
-                              height={10}
-                              style={{ marginRight: '4px', verticalAlign: 'middle' }}
-                            />
-                          )}
-                          {categoryMeta.label}
-                        </span>
-                      )}
+                      <span
+                        className={`card-cat-badge ${categoryMeta.themeClass}`}
+                        style={{ color: categoryMeta.color, borderColor: categoryMeta.color }}
+                      >
+                        <RiIcon
+                          icon={categoryMeta.icon}
+                          width={10}
+                          height={10}
+                          style={{ marginRight: '4px', verticalAlign: 'middle' }}
+                        />
+                        {categoryMeta.label}
+                      </span>
                       {isAdmin && (!prompt.status || prompt.status === 'draft') && (
-                        <span className="status-badge status-draft">Draft</span>
+                        <span className="status-badge status-draft">草稿</span>
                       )}
                       {isAdmin && prompt.status === 'private' && (
-                        <span className="status-badge status-private">Private</span>
+                        <span className="status-badge status-private">私密</span>
                       )}
+                      <span className="prompt-usage-pill">{USAGE_LABELS[getUsageMode(prompt)]}</span>
                     </div>
                     <Link
                       to={isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`}
+                      state={returnTo ? { returnTo } : undefined}
                       className="prompt-title"
                     >
                       {prompt.title}
@@ -558,13 +589,13 @@ export default function PromptList() {
 
                 {/* Summary */}
                 <div className="prompt-card-summary">
-                  {prompt.summary || (prompt.content.length > 100 ? `${prompt.content.substring(0, 100)}...` : prompt.content)}
+                  {getPromptSummary(prompt)}
                 </div>
 
                 {/* Tags */}
                 {prompt.tagNames && prompt.tagNames.length > 0 && (
                   <div className="prompt-tag-list">
-                    {prompt.tagNames.map((tagName, idx) => {
+                    {prompt.tagNames.slice(0, 3).map((tagName, idx) => {
                       const tagObj = allTags.find(t => t.id === prompt.tagIds?.[idx]);
                       return (
                         <span
@@ -576,77 +607,57 @@ export default function PromptList() {
                         </span>
                       );
                     })}
+                    {prompt.tagNames.length > 3 && (
+                      <span className="prompt-tag-pill">+{prompt.tagNames.length - 3}</span>
+                    )}
                   </div>
                 )}
 
-                {/* Collapsible content */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      className="prompt-card-collapsible"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <div className="expanded-details-container">
-                        <div className="expanded-header">
-                          <CornerDownRight size={14} className="text-primary" />
-                          <span>🎯 這個 PROMPT 會：</span>
-                        </div>
-                        <div className="expanded-body">
-                          <ReactMarkdown>{prompt.content}</ReactMarkdown>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
                 {/* Footer metadata */}
                 <div className="prompt-meta">
-                  <span className="text-zinc-300">{USAGE_LABELS[getUsageMode(prompt)]}</span>
-                  <span>Indexed: {new Date(prompt.createdAt).toLocaleDateString()}</span>
+                  <span>收录于 {new Date(prompt.createdAt).toLocaleDateString()}</span>
                   {prompt.usageCount !== undefined && prompt.usageCount > 0 && (
-                    <span className="usage-count">Used {prompt.usageCount} times</span>
+                    <span className="usage-count">使用 {prompt.usageCount} 次</span>
                   )}
                 </div>
 
                 {/* Action row */}
                 <div className="prompt-card-actions">
                   <button
-                    className={`btn-secondary action-btn-glow toggle-expand-btn ${isExpanded ? 'active' : ''}`}
-                    onClick={() => toggleExpand(prompt.id)}
-                    title={isExpanded ? 'Collapse Prompt' : 'Expand Details'}
+                    className="btn-secondary action-btn-glow toggle-expand-btn"
+                    onClick={() => navigate(
+                      isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`,
+                      { state: returnTo ? { returnTo } : undefined },
+                    )}
+                    aria-label="查看指令详情"
+                    title="查看指令详情"
                   >
-                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    <span style={{ marginLeft: '4px' }}>{isExpanded ? 'Collapse' : 'Expand'}</span>
+                    <Eye size={15} aria-hidden="true" />
+                    <span style={{ marginLeft: '4px' }}>查看详情</span>
                   </button>
 
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                    {!isAdmin && (
-                      <Link to={`/p/${prompt.id}`} className="btn-secondary icon-action-btn" title="View details">
-                        <Eye size={14} />
-                      </Link>
-                    )}
+                  <div className="prompt-actions-group">
                     <Link
-                      to={canTryPrompt(prompt) ? `/prompts/${prompt.id}/run` : `/p/${prompt.id}#usage-guide`}
+                      to={canTryPrompt(prompt) ? `/prompts/${prompt.id}/run` : `/p/${prompt.id}`}
+                      state={returnTo ? { returnTo } : undefined}
                       className="btn-primary btn-glow icon-action-btn"
                       onClick={e => {
                         if (canTryPrompt(prompt) && !userEmail) { e.preventDefault(); setPendingTrialId(prompt.id); setIsLoginModalOpen(true); }
                       }}
-                      title={canTryPrompt(prompt) ? '在线试用' : '查看外部 Agent 使用指南'}
-                      aria-label={canTryPrompt(prompt) ? '在线试用' : '查看外部 Agent 使用指南'}
+                      title={canTryPrompt(prompt) ? '在线试用' : '查看指令详情'}
+                      aria-label={canTryPrompt(prompt) ? '在线试用此指令' : '查看此指令详情'}
                     >
-                      <Zap size={14} />
+                      <Zap size={15} aria-hidden="true" />
                     </Link>
                     <button
                       className={`btn-secondary icon-action-btn copy-action-btn ${copiedId === prompt.id ? 'copied' : ''}`}
                       onClick={() => copyPrompt(prompt)}
-                      title="Copy to clipboard"
+                      title={copiedId === prompt.id ? '已复制指令内容' : '复制指令内容'}
+                      aria-label={copiedId === prompt.id ? '已复制指令内容' : '复制指令内容'}
                     >
                       {copiedId === prompt.id
-                        ? <Check size={14} className="text-success animate-bounce" />
-                        : <CopyIcon size={14} />}
+                        ? <Check size={15} className="text-success animate-bounce" aria-hidden="true" />
+                        : <CopyIcon size={15} aria-hidden="true" />}
                     </button>
                     {isAdmin && (
                     <button
@@ -659,9 +670,10 @@ export default function PromptList() {
                       aria-pressed={!!prompt.favorite}
                     >
                       <Star
-                        size={14}
+                        size={15}
                         fill={prompt.favorite ? 'var(--warning)' : 'none'}
                         style={prompt.favorite ? { color: 'var(--warning)' } : undefined}
+                        aria-hidden="true"
                       />
                     </button>
                     )}
@@ -669,9 +681,10 @@ export default function PromptList() {
                       <button
                         className="btn-secondary icon-action-btn delete-action-btn"
                         onClick={() => deletePrompt(prompt.id)}
-                        title="Delete Asset"
+                        title="删除指令"
+                        aria-label="删除指令"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={15} aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -681,23 +694,23 @@ export default function PromptList() {
           })
         ) : (
           <div className="empty-state card-base" style={{ padding: '60px 20px', borderStyle: 'dashed' }}>
-            {(searchQuery || activeTagNames.length > 0) ? (
+            {isFilterActive ? (
               <div>
-                <p>No matching prompts found</p>
+                <p>当前筛选条件下没有匹配的指令</p>
                 <button
                   className="btn-secondary"
-                  onClick={() => setSearchParams(new URLSearchParams(), { replace: true })}
+                  onClick={clearFilters}
                 >
-                  清除筛选
+                  清除全部筛选
                 </button>
               </div>
             ) : !isAdmin && prompts.length > 0 ? (
-              <div><p>No published prompts available yet.</p></div>
+              <div><p>暂时还没有公开可用的指令。</p></div>
             ) : (
               <div>
-                <p>No prompts in database vault yet.</p>
+                <p>指令库暂时为空。</p>
                 {isAdmin && (
-                  <Link to="/prompts/new" className="btn-primary">Create a Prompt</Link>
+                  <Link to="/prompts/new" className="btn-primary">新建指令</Link>
                 )}
               </div>
             )}
@@ -712,123 +725,6 @@ export default function PromptList() {
         title="登录后开始试用"
         description="使用免费模型测试短文本，登录后将继续打开当前指令。"
       />
-
-      {/* Random Prompt Preview Modal */}
-      {randomPick && (
-        <RandomPreviewModal
-          prompt={randomPick}
-          isAdmin={isAdmin}
-          onShuffle={handleRandomPrompt}
-          onClose={() => setRandomPick(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ── RandomPreviewModal ─────────────────────────────────────────
-function RandomPreviewModal({
-  prompt,
-  isAdmin,
-  onShuffle,
-  onClose,
-}: {
-  prompt: Prompt;
-  isAdmin: boolean;
-  onShuffle: () => void;
-  onClose: () => void;
-}) {
-
-  // Extract first 1-2 bullet points from content as teaser
-  const lines = prompt.content
-    .split('\n')
-    .map(l => l.trim())
-    .filter(Boolean);
-  const bulletLines = lines.filter(l => /^[-•*]|^\d+\./.test(l)).slice(0, 2);
-  const teaser = bulletLines.length > 0 ? bulletLines : lines.slice(0, 2);
-
-  const CATEGORY_MAP_LOCAL: Record<string, { label: string; color: string }> = {
-    dev:         { label: 'Development',  color: 'var(--color-dev)' },
-    writing:     { label: 'Writing',      color: 'var(--color-writing)' },
-    finance:     { label: 'Finance',      color: 'var(--color-finance)' },
-    learning:    { label: 'Learning',     color: 'var(--color-learning)' },
-    thinking:    { label: 'Thinking',     color: 'var(--color-thinking)' },
-    tools:       { label: 'Tools',        color: 'var(--color-tools)' },
-    translation: { label: 'Translation',  color: 'var(--color-translation)' },
-  };
-  const catMeta = prompt.category
-    ? (CATEGORY_MAP_LOCAL[prompt.category.toLowerCase()] ?? { label: prompt.category, color: 'var(--primary)' })
-    : null;
-
-  const detailUrl = isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`;
-
-  // Close on backdrop click
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  return (
-    <div className="random-modal-backdrop" onClick={handleBackdropClick} role="dialog" aria-modal="true" aria-label="Random Prompt Preview">
-      <div className="random-modal-card">
-        {/* Dismiss */}
-        <button className="random-modal-close" onClick={onClose} aria-label="Close">
-          ✕
-        </button>
-
-        {/* Label */}
-        <p className="random-modal-eyebrow">
-          <Shuffle size={11} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-          Random Pick
-        </p>
-
-        {/* Category badge */}
-        {catMeta && (
-          <span
-            className="random-modal-category"
-            style={{ color: catMeta.color, borderColor: catMeta.color, backgroundColor: `${catMeta.color}12` }}
-          >
-            {catMeta.label}
-          </span>
-        )}
-
-        {/* Title */}
-        <h2 className="random-modal-title">{prompt.title}</h2>
-
-        {/* Teaser bullets */}
-        {teaser.length > 0 && (
-          <ul className="random-modal-teaser">
-            {teaser.map((line, i) => (
-              <li key={i}>{line.replace(/^[-•*]\s*|^\d+\.\s*/, '')}</li>
-            ))}
-          </ul>
-        )}
-
-        {/* Actions */}
-        <div className="random-modal-actions">
-          <button
-            className="random-modal-btn-shuffle"
-            onClick={onShuffle}
-          >
-            <Shuffle size={13} style={{ marginRight: '6px' }} />
-            Try Another
-          </button>
-          <Link
-            to={detailUrl}
-            className="random-modal-btn-detail"
-            onClick={onClose}
-          >
-            View Details
-            <ArrowRight size={13} style={{ marginLeft: '6px' }} />
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

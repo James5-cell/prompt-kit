@@ -384,7 +384,7 @@ export default function PromptEditor() {
             <select id="usage-mode" className="input-base" value={usageMode} onChange={e => setUsageMode(e.target.value as NonNullable<Prompt['usageMode']>)} disabled={!isAdmin}>
               {Object.entries(USAGE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <p className="field-hint">外部环境类仅展示使用指南。新指令需确认条件后再开放试用。</p>
+            <p className="field-hint">外部环境类仅保留复制与详情入口。新指令需确认条件后再开放试用。</p>
           </div>
           <div className="form-group"><label htmlFor="input-hint">输入／准备资料</label><input id="input-hint" className="input-base" value={inputHint} onChange={e => setInputHint(e.target.value)} disabled={!isAdmin} /></div>
           <div className="form-group"><label htmlFor="output-hint">预期产出</label><input id="output-hint" className="input-base" value={outputHint} onChange={e => setOutputHint(e.target.value)} disabled={!isAdmin} /></div>

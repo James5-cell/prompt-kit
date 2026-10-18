@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Search, CornerDownLeft, Sparkles } from 'lucide-react';
 import { Icon as RiIcon } from '@iconify/react';
 
@@ -17,11 +18,13 @@ interface DashboardHeroProps {
   selectedCategory: string;
   onSelectCategory: (id: string) => void;
   categories: CategoryOption[];
-  featuredCount: number;
   isSearching: boolean;
-  totalFilteredCount: number;
-  totalVaultCount: number;
-  onNavigateToLibrary: () => void;
+  /** Library matches for the current query + category filter (honest total). */
+  matchCount: number;
+  /** How many matches the dashboard actually renders below the hero. */
+  shownCount: number;
+  /** Single destination that keeps q + category for the full result list. */
+  resultsHref: string;
 }
 
 export const DashboardHero: React.FC<DashboardHeroProps> = ({
@@ -32,11 +35,10 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
   selectedCategory,
   onSelectCategory,
   categories,
-  featuredCount,
   isSearching,
-  totalFilteredCount,
-  totalVaultCount,
-  onNavigateToLibrary,
+  matchCount,
+  shownCount,
+  resultsHref,
 }) => {
   return (
     <section className="relative mx-auto mb-10 flex max-w-4xl flex-col items-center text-center">
@@ -68,44 +70,49 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={onSearchKeyDown}
             placeholder="搜索翻译、词典、文章分析、代码审查…"
-            className="w-full bg-transparent px-3 py-3 text-sm text-zinc-200 placeholder-zinc-500 outline-none"
+            className="min-h-11 w-full min-w-0 bg-transparent px-3 py-3 text-sm text-zinc-200 placeholder-zinc-500 outline-none"
           />
 
           <div className="mr-3 flex shrink-0 items-center gap-2">
             {searchQuery && (
               <button
+                type="button"
                 onClick={onSearchClear}
-                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:text-zinc-200"
+                aria-label="清空搜索内容"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded px-1.5 text-xs text-zinc-400 hover:text-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
               >
                 清空
               </button>
             )}
             <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 font-mono text-[10px] text-zinc-400">
               <CornerDownLeft size={10} />
-              <span>Enter 检索全库</span>
+              <span>Enter 查看全部</span>
             </kbd>
           </div>
         </div>
 
-        {/* 动态实时过滤提示条 */}
-        {searchQuery.trim() && (
-          <div className="mt-2.5 flex items-center justify-between rounded border border-zinc-800/60 bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400">
-            <span>
-              已即时呈现前 <strong className="font-mono text-zinc-200">{featuredCount}</strong> 条匹配项
-              （当前筛选共 {totalFilteredCount} 项）
+        {/* 搜索结果提示条：显式标注展示的是前 N 条，并给出唯一的「查看全部」入口 */}
+        {isSearching && matchCount > 0 && (
+          <div className="mt-2.5 flex flex-col gap-1.5 rounded border border-zinc-800/60 bg-zinc-900/40 px-3 py-2 text-left text-xs text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+            <span className="min-w-0 break-words">
+              全库匹配 <strong className="font-mono text-zinc-200">{matchCount}</strong> 条
+              {shownCount < matchCount ? `，首页预览前 ${shownCount} 条` : '，已全部显示'}
             </span>
-            <button
-              onClick={onNavigateToLibrary}
-              className="font-mono text-zinc-400 hover:text-zinc-100 hover:underline"
+            <Link
+              to={resultsHref}
+              className="inline-flex min-h-11 shrink-0 items-center font-medium text-cyan-300 hover:text-cyan-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 sm:min-h-0"
             >
-              按 Enter 前往全量指令库查看 →
-            </button>
+              查看全部匹配结果 →
+            </Link>
           </div>
         )}
       </div>
 
       {/* ── 5. 分类 Segmented Control (横向分段切换，取代散乱堆叠) ── */}
       <div className="mt-5 grid w-full grid-cols-2 items-center justify-center gap-1 sm:flex sm:flex-wrap rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-1">
+        <span className="col-span-2 px-2 text-left text-xs text-zinc-400 sm:sr-only">
+          {isSearching ? '搜索覆盖全部指令；选择分类将结束搜索。' : '按分类浏览精选指令'}
+        </span>
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.id;
           return (
@@ -128,15 +135,6 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
             </button>
           );
         })}
-      </div>
-
-      {/* 数量微提示 */}
-      <div className="mt-2 text-right w-full max-w-2xl px-1">
-<div className="flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-300">
-          <span>{isSearching ? "搜索结果" : "管理员精选"} {featuredCount} 项 · 全库 {totalVaultCount} 项</span>
-          <button onClick={onNavigateToLibrary} className="min-h-11 text-cyan-300 hover:underline">查看全部 {totalFilteredCount} 条 →</button>
-        </div>
-        {!isSearching && <p className="text-left text-xs leading-relaxed text-zinc-400">管理员加星推荐 · 按创建时间从新到旧展示，最多 3 条</p>}
       </div>
     </section>
   );

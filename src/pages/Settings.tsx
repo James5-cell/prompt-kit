@@ -3,11 +3,53 @@ import { db } from '../storage/db';
 import { aiService } from '../services/aiService';
 import { aiConfigService } from '../services/aiConfigService';
 import type { AIProvider } from '../services/aiProviders/types';
-import { aiModelRegistry } from '../services/aiModelRegistry';
-import type { AIModelConfig } from '../config/aiModels';
+import { SUPPORTED_MODELS, type AIModelConfig } from '../config/aiModels';
 import { useNoIndex } from '../hooks/useNoIndex';
 import SEOHead from '../components/SEOHead';
+import { Icon as RiIcon } from '@iconify/react';
 import './Settings.css';
+
+// Canonical labels for every provider the app can talk to. The cloud config may
+// omit providers, so the default-provider select falls back to these instead of
+// rendering a blank value when the stored provider is missing from that config.
+const KNOWN_PROVIDER_LABELS: Record<AIProvider, string> = {
+  gemini: 'Gemini (Google)',
+  openai: 'OpenAI (GPT)',
+  nvidia: 'NVIDIA Build',
+  anthropic: 'Anthropic (Claude)',
+  groq: 'Groq',
+  deepseek: 'DeepSeek',
+};
+
+const KNOWN_PROVIDER_ORDER: AIProvider[] = ['gemini', 'openai', 'nvidia', 'anthropic', 'groq', 'deepseek'];
+
+interface ProviderDefinition {
+  id: AIProvider;
+  name: string;
+  summary: string;
+  placeholder: string;
+}
+
+const PROVIDERS: ProviderDefinition[] = KNOWN_PROVIDER_ORDER.map(id => ({
+  id,
+  name: KNOWN_PROVIDER_LABELS[id],
+  summary: {
+    gemini: 'Google 多模态模型',
+    openai: 'GPT 系列模型',
+    nvidia: 'NIM 开源模型',
+    anthropic: 'Claude 系列模型',
+    groq: '低延迟推理服务',
+    deepseek: 'DeepSeek 对话与推理模型',
+  }[id],
+  placeholder: {
+    gemini: '输入你的 Gemini API Key',
+    openai: '输入你的 OpenAI API Key (sk-...)',
+    nvidia: '输入你的 NVIDIA API Key (nvapi-...)',
+    anthropic: '输入你的 Anthropic API Key (sk-ant-...)',
+    groq: '输入你的 Groq API Key (gsk_...)',
+    deepseek: '输入你的 DeepSeek API Key (sk-...)',
+  }[id],
+}));
 
 export default function Settings() {
   useNoIndex();
@@ -24,7 +66,6 @@ export default function Settings() {
   // Default provider and model
   const [defaultProvider, setDefaultProvider] = useState<AIProvider>('gemini');
   const [defaultModel, setDefaultModel] = useState<string>('');
-  const [availableModels, setAvailableModels] = useState<AIModelConfig[]>([]);
   
   // API key button states: 'idle' | 'loading' | 'success' | 'error'
   const [buttonStates, setButtonStates] = useState<Record<AIProvider, 'idle' | 'loading' | 'success' | 'error'>>({
@@ -45,6 +86,7 @@ export default function Settings() {
     groq: null,
     deepseek: null,
   });
+  const [expandedProvider, setExpandedProvider] = useState<AIProvider | null>('gemini');
 
   useEffect(() => {
     loadSettings();
@@ -72,9 +114,9 @@ export default function Settings() {
       
       const initialProvider = (savedDefaultProvider as AIProvider) || 'gemini';
       setDefaultProvider(initialProvider);
-      
-      const models = await aiModelRegistry.getModelsForProvider(initialProvider);
-      setAvailableModels(models);
+      setExpandedProvider(initialProvider);
+
+      const models = SUPPORTED_MODELS.filter(model => model.provider === initialProvider);
 
       if (savedDefaultModel) {
         setDefaultModel(savedDefaultModel as string);
@@ -85,6 +127,8 @@ export default function Settings() {
       // Load config & AI service
       await aiConfigService.loadConfig();
       await aiService.initialize();
+
+      setExpandedProvider(initialProvider);
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -94,7 +138,7 @@ export default function Settings() {
 
   async function handleSaveApiKey(provider: AIProvider, apiKey: string) {
     if (!apiKey.trim()) {
-      alert('Please enter an API Key');
+      alert('请输入 API Key');
       return;
     }
 
@@ -139,45 +183,45 @@ export default function Settings() {
     }
   }
 
-  async function handleSetDefaultProvider(provider: AIProvider) {
+  async function handleSelectModel(provider: AIProvider, modelId: string) {
     try {
-      await aiService.setDefaultProvider(provider);
-      setDefaultProvider(provider);
-      
-      const models = await aiModelRegistry.getModelsForProvider(provider);
-      setAvailableModels(models);
-      
-      if (models.length > 0) {
-        const newModel = models[0].id;
-        setDefaultModel(newModel);
-        await db.saveSetting('defaultAIModel', newModel);
+      if (provider !== defaultProvider) {
+        await aiService.setDefaultProvider(provider);
+        setDefaultProvider(provider);
       }
-      
-      alert(`Default AI provider set to ${provider.toUpperCase()}`);
+
+      await db.saveSetting('defaultAIModel', modelId);
+      setDefaultModel(modelId);
+      setExpandedProvider(provider);
     } catch (error: any) {
-      alert(`Setting failed: ${error?.message || error}`);
+      alert(`设置失败：${error?.message || error}`);
     }
   }
 
-  async function handleSetDefaultModel(modelId: string) {
-    try {
-      await db.saveSetting('defaultAIModel', modelId);
-      setDefaultModel(modelId);
-    } catch (error: any) {
-      alert(`Setting failed: ${error?.message || error}`);
+  async function handleSetDefaultProvider(provider: AIProvider) {
+    const models = SUPPORTED_MODELS.filter(model => model.provider === provider);
+    const nextModel = provider === defaultProvider
+      ? defaultModel
+      : models.find(model => model.id === defaultModel)?.id || models[0]?.id;
+
+    if (!nextModel) {
+      alert('该服务商暂无可用模型');
+      return;
     }
+
+    await handleSelectModel(provider, nextModel);
   }
 
   async function handleDeleteApiKey(provider: AIProvider) {
     const providerName = aiConfigService.getProviderName(provider) || provider;
 
-    const confirmMessage = `Are you sure you want to delete the ${providerName} API Key?\n\n` +
-      `⚠️ Privacy Notice:\n` +
-      `- Your API Key will be permanently deleted from local storage\n` +
-      `- This action cannot be undone\n` +
-      `- All data is stored locally in your browser (IndexedDB)\n` +
-      `- No API keys are sent to external servers except for API calls\n\n` +
-      `Click OK to confirm deletion.`;
+    const confirmMessage = `确定要删除 ${providerName} 的 API Key 吗？\n\n` +
+      `⚠️ 隐私提示：\n` +
+      `- 你的 API Key 将从本地存储中永久删除\n` +
+      `- 此操作无法撤销\n` +
+      `- 所有数据仅保存在你的浏览器（IndexedDB）中\n` +
+      `- 除 API 调用外，不会将 API Key 发送到外部服务器\n\n` +
+      `点击“确定”确认删除。`;
 
     if (!confirm(confirmMessage)) {
       return;
@@ -211,6 +255,7 @@ export default function Settings() {
 
       // Clear test results
       setTestResults((prev) => ({ ...prev, [provider]: null }));
+      setExpandedProvider(current => current === provider ? null : current);
 
       // Reload default provider if it changed
       const savedDefault = await db.getSetting('defaultAIProvider');
@@ -223,10 +268,10 @@ export default function Settings() {
       // Reinitialize AI service
       await aiService.initialize();
 
-      alert(`${providerName} API Key has been permanently deleted.\n\nYour privacy is protected - the key has been removed from local storage.`);
+      alert(`${providerName} API Key 已被永久删除。\n\n你的隐私已受保护 —— 该密钥已从本地存储中移除。`);
     } catch (error: unknown) {
       console.error(`Failed to delete ${provider} API key:`, error);
-      alert(`Delete failed: ${error instanceof Error ? error.message : error}`);
+      alert(`删除失败：${error instanceof Error ? error.message : error}`);
     }
   }
 
@@ -236,37 +281,37 @@ export default function Settings() {
     switch (provider) {
       case 'gemini':
         return {
-          text: 'For testing prompt effects. You can get an API Key from',
+          text: '用于测试提示词效果，可前往',
           link: 'https://makersuite.google.com/app/apikey',
           linkText: 'Google AI Studio',
         };
       case 'openai':
         return {
-          text: 'For testing prompt effects. You can get an API Key from',
+          text: '用于测试提示词效果，可前往',
           link: 'https://platform.openai.com/api-keys',
           linkText: 'OpenAI Platform',
         };
       case 'nvidia':
         return {
-          text: 'For testing prompt effects. Visit',
+          text: '用于测试提示词效果，请访问',
           link: 'https://build.nvidia.com/explore/discover',
           linkText: 'NVIDIA Build',
         };
       case 'anthropic':
         return {
-          text: 'For testing prompt effects. You can get an API Key from',
+          text: '用于测试提示词效果，可前往',
           link: 'https://console.anthropic.com/settings/keys',
           linkText: 'Anthropic Console',
         };
       case 'groq':
         return {
-          text: 'Fast inference for open models. Get a key from',
+          text: '面向开源模型的快速推理，可前往',
           link: 'https://console.groq.com/keys',
           linkText: 'Groq Console',
         };
       case 'deepseek':
         return {
-          text: 'For testing DeepSeek models. Get a key from',
+          text: '用于测试 DeepSeek 模型，可前往',
           link: 'https://platform.deepseek.com/api_keys',
           linkText: 'DeepSeek Platform',
         };
@@ -277,379 +322,197 @@ export default function Settings() {
 
   function getSaveBtn(provider: AIProvider) {
     const state = buttonStates[provider];
-    if (state === 'loading') return { label: '⏳ Testing...', disabled: true, style: {} };
-    if (state === 'success') return { label: '✓ Saved', disabled: true, style: { background: 'var(--success)', color: 'var(--bg)' } };
-    if (state === 'error')   return { label: '✗ Invalid Key',  disabled: true, style: { background: 'var(--danger)', color: 'var(--text)' } };
-    return { label: 'Save & Test', disabled: false, style: {} };
+    if (state === 'loading') return { label: '⏳ 测试中…', disabled: true, style: {} };
+    if (state === 'success') return { label: '✓ 已保存', disabled: true, style: { background: 'var(--success)', color: 'var(--bg)' } };
+    if (state === 'error')   return { label: '✗ 密钥无效',  disabled: true, style: { background: 'var(--danger)', color: 'var(--text)' } };
+    return { label: '保存并测试', disabled: false, style: {} };
   }
+
+  const apiKeyByProvider: Record<AIProvider, string> = {
+    gemini: geminiApiKey,
+    openai: openaiApiKey,
+    nvidia: nvidiaApiKey,
+    anthropic: anthropicApiKey,
+    groq: groqApiKey,
+    deepseek: deepseekApiKey,
+  };
+
+  const apiKeySetterByProvider: Record<AIProvider, (value: string) => void> = {
+    gemini: setGeminiApiKey,
+    openai: setOpenaiApiKey,
+    nvidia: setNvidiaApiKey,
+    anthropic: setAnthropicApiKey,
+    groq: setGroqApiKey,
+    deepseek: setDeepseekApiKey,
+  };
+
+  const providerModels = Object.fromEntries(
+    PROVIDERS.map(provider => [
+      provider.id,
+      SUPPORTED_MODELS.filter(model => model.provider === provider.id),
+    ]),
+  ) as Record<AIProvider, AIModelConfig[]>;
+
+  const toggleProvider = (provider: AIProvider) => {
+    setExpandedProvider(current => current === provider ? null : provider);
+  };
 
   return (
     <div className="settings-page">
       <SEOHead
-        title="Settings — 系統設定"
-        description="系統偏好設定、AI 模型 Provider 密鑰配置與本地儲存管理。"
+        title="模型设置 — Prompt Kit"
+        description="选择默认 AI 服务商与模型，并在浏览器本地配置 API Key。"
         canonical="https://www.205011.xyz/settings"
       />
-      <h1>Settings</h1>
 
-      <div className="settings-section">
-        <h2>AI Provider Configuration</h2>
-        
-        {/* Default Provider Selection */}
-        <div className="setting-item" style={{ marginBottom: '20px' }}>
-          <label htmlFor="default-provider">Default AI Provider</label>
-          <select
-            id="default-provider"
-            name="defaultProvider"
-            value={defaultProvider}
-            onChange={(e) => handleSetDefaultProvider(e.target.value as AIProvider)}
-            disabled={isLoading}
-            className="provider-select"
-          >
-            {aiConfigService.getAllProviders().map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <p className="setting-hint">
-            Select the default AI provider to use when running prompts
-          </p>
+      <header className="settings-header">
+        <div>
+          <h1>模型设置</h1>
+          <p>选择服务商和模型，API Key 只保存在当前浏览器。</p>
         </div>
+        <p className="settings-privacy-note">
+          <RiIcon icon="ri:lock-2-line" width={14} height={14} aria-hidden="true" />
+          API Key 仅保存在当前浏览器本地，绝不上传服务器。
+        </p>
+      </header>
 
-        {/* Default Model Selection */}
-        {availableModels.length > 0 && (
-          <div className="setting-item" style={{ marginBottom: '24px' }}>
-            <label htmlFor="default-model">Default AI Model</label>
-            <select
-              id="default-model"
-              name="defaultModel"
-              value={defaultModel}
-              onChange={(e) => handleSetDefaultModel(e.target.value)}
-              disabled={isLoading}
-              className="model-select"
+      <div className="providers-list">
+        {PROVIDERS.map(provider => {
+          const apiKey = apiKeyByProvider[provider.id];
+          const isConfigured = Boolean(apiKey.trim());
+          const isExpanded = expandedProvider === provider.id;
+          const isDefault = defaultProvider === provider.id;
+          const hint = getProviderHint(provider.id);
+          const models = providerModels[provider.id];
+          const selectedModelId = isDefault
+            ? defaultModel
+            : models.find(model => model.id === defaultModel)?.id || models[0]?.id || '';
+          const selectedModel = models.find(model => model.id === selectedModelId);
+          const modelLabel = selectedModel?.name || '暂无可用模型';
+          const panelId = `provider-panel-${provider.id}`;
+          const buttonState = getSaveBtn(provider.id);
+
+          return (
+            <section
+              className={`provider-card${isExpanded ? ' is-expanded' : ''}`}
+              key={provider.id}
+              aria-labelledby={`provider-title-${provider.id}`}
             >
-              {availableModels.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-            <p className="setting-hint">
-              Select the default model to use when testing prompts
-            </p>
-          </div>
-        )}
-
-        <div className="byok-info-banner">
-          <h4>🔐 Bring Your Own Key (BYOK) Mode</h4>
-          <ul>
-            <li>Your API keys are stored <strong>locally</strong> in your browser's IndexedDB.</li>
-            <li>During testing, the selected key is sent <strong>once</strong> to our Vercel Serverless Endpoint.</li>
-            <li>We use the <strong>Vercel AI SDK Proxy</strong> runtime to safely handle the request.</li>
-            <li>Your keys are <strong>never persisted</strong> on our servers.</li>
-          </ul>
-        </div>
-        
-        <div className="providers-grid">
-          {/* Gemini */}
-          <div className="provider-form">
-            <h3>Gemini (Google)</h3>
-            <p className="provider-desc">
-              {getProviderHint('gemini').text}{' '}
-              <a href={getProviderHint('gemini').link} target="_blank" rel="noopener noreferrer">
-                {getProviderHint('gemini').linkText}
-              </a>
-            </p>
-            
-            <div className="api-key-input-group">
-              <input
-                type="password"
-                value={geminiApiKey}
-                onChange={(e) => setGeminiApiKey(e.target.value)}
-                placeholder="Enter your Gemini API Key"
-                className="settings-input"
-              />
-              
-              <div className="api-key-actions">
-                {(() => { const b = getSaveBtn('gemini'); return (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleSaveApiKey('gemini', geminiApiKey)}
-                    disabled={b.disabled || !geminiApiKey.trim()}
-                    style={b.style}
-                  >
-                    {b.label}
-                  </button>
-                ); })()}
-                
-                {geminiApiKey && (
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDeleteApiKey('gemini')}
-                  >
-                    Delete
-                  </button>
-                )}
+              <div className="provider-card-head">
+                <button
+                  type="button"
+                  className="provider-summary"
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                  onClick={() => toggleProvider(provider.id)}
+                >
+                  <span className="provider-identity">
+                    <span id={`provider-title-${provider.id}`} className="provider-name">{provider.name}</span>
+                    <span className="provider-model-label">{modelLabel}</span>
+                  </span>
+                  <span className="provider-status">
+                    {isDefault && <span className="provider-badge is-default">当前默认</span>}
+                    <span className={`provider-badge ${isConfigured ? 'is-configured' : ''}`}>
+                      {isConfigured ? '已配置' : '未配置'}
+                    </span>
+                    <RiIcon
+                      className={`provider-chevron${isExpanded ? ' is-open' : ''}`}
+                      icon="ri:arrow-down-s-line"
+                      width={18}
+                      height={18}
+                      aria-hidden="true"
+                    />
+                  </span>
+                </button>
               </div>
-            </div>
-            
-            {testResults.gemini === 'success' && (
-              <div className="test-success">✅ Connection successful</div>
-            )}
-            {testResults.gemini === 'error' && (
-              <div className="test-error">❌ Connection failed</div>
-            )}
-          </div>
 
-          {/* OpenAI */}
-          <div className="provider-form">
-            <h3>OpenAI (GPT)</h3>
-            <p className="provider-desc">
-              {getProviderHint('openai').text}{' '}
-              <a href={getProviderHint('openai').link} target="_blank" rel="noopener noreferrer">
-                {getProviderHint('openai').linkText}
-              </a>
-            </p>
-            
-            <div className="api-key-input-group">
-              <input
-                type="password"
-                value={openaiApiKey}
-                onChange={(e) => setOpenaiApiKey(e.target.value)}
-                placeholder="Enter your OpenAI API Key (sk-...)"
-                className="settings-input"
-              />
-              
-              <div className="api-key-actions">
-                {(() => { const b = getSaveBtn('openai'); return (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleSaveApiKey('openai', openaiApiKey)}
-                    disabled={b.disabled || !openaiApiKey.trim()}
-                    style={b.style}
-                  >
-                    {b.label}
-                  </button>
-                ); })()}
-                
-                {openaiApiKey && (
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDeleteApiKey('openai')}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {testResults.openai === 'success' && (
-              <div className="test-success">✅ Connection successful</div>
-            )}
-            {testResults.openai === 'error' && (
-              <div className="test-error">❌ Connection failed</div>
-            )}
-          </div>
+              {isExpanded && (
+                <div className="provider-panel" id={panelId}>
+                  <div className="provider-panel-meta">
+                    <span>{provider.summary}</span>
+                    {!isDefault && (
+                      <button
+                        type="button"
+                        className="set-default-button"
+                        onClick={() => handleSetDefaultProvider(provider.id)}
+                      >
+                        设为默认
+                      </button>
+                    )}
+                  </div>
 
-          {/* NVIDIA */}
-          <div className="provider-form">
-            <h3>NVIDIA Build</h3>
-            <p className="provider-desc">
-              {getProviderHint('nvidia').text}{' '}
-              <a href={getProviderHint('nvidia').link} target="_blank" rel="noopener noreferrer">
-                {getProviderHint('nvidia').linkText}
-              </a>
-            </p>
-            
-            <div className="api-key-input-group">
-              <input
-                type="password"
-                value={nvidiaApiKey}
-                onChange={(e) => setNvidiaApiKey(e.target.value)}
-                placeholder="Enter your NVIDIA API Key (nvapi-...)"
-                className="settings-input"
-              />
-              
-              <div className="api-key-actions">
-                {(() => { const b = getSaveBtn('nvidia'); return (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleSaveApiKey('nvidia', nvidiaApiKey)}
-                    disabled={b.disabled || !nvidiaApiKey.trim()}
-                    style={b.style}
-                  >
-                    {b.label}
-                  </button>
-                ); })()}
-                
-                {nvidiaApiKey && (
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDeleteApiKey('nvidia')}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {testResults.nvidia === 'success' && (
-              <div className="test-success">✅ Connection successful</div>
-            )}
-            {testResults.nvidia === 'error' && (
-              <div className="test-error">❌ Connection failed</div>
-            )}
-          </div>
+                  <div className="provider-config-grid">
+                    <div className="provider-field">
+                      <label htmlFor={`${provider.id}-model`}>使用模型</label>
+                      <select
+                        id={`${provider.id}-model`}
+                        value={selectedModelId}
+                        onChange={(event) => handleSelectModel(provider.id, event.target.value)}
+                        disabled={isLoading || models.length === 0}
+                        className="model-select"
+                      >
+                        {models.map(model => (
+                          <option key={model.id} value={model.id}>{model.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-          {/* Anthropic */}
-          <div className="provider-form">
-            <h3>Anthropic (Claude)</h3>
-            <p className="provider-desc">
-              {getProviderHint('anthropic').text}{' '}
-              <a href={getProviderHint('anthropic').link} target="_blank" rel="noopener noreferrer">
-                {getProviderHint('anthropic').linkText}
-              </a>
-            </p>
-            
-            <div className="api-key-input-group">
-              <input
-                type="password"
-                value={anthropicApiKey}
-                onChange={(e) => setAnthropicApiKey(e.target.value)}
-                placeholder="Enter your Anthropic API Key (sk-ant-...)"
-                className="settings-input"
-              />
-              
-              <div className="api-key-actions">
-                {(() => { const b = getSaveBtn('anthropic'); return (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleSaveApiKey('anthropic', anthropicApiKey)}
-                    disabled={b.disabled || !anthropicApiKey.trim()}
-                    style={b.style}
-                  >
-                    {b.label}
-                  </button>
-                ); })()}
-                
-                {anthropicApiKey && (
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDeleteApiKey('anthropic')}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {testResults.anthropic === 'success' && (
-              <div className="test-success">✅ Connection successful</div>
-            )}
-            {testResults.anthropic === 'error' && (
-              <div className="test-error">❌ Connection failed</div>
-            )}
-          </div>
+                    <div className="provider-field">
+                      <label htmlFor={`${provider.id}-api-key`}>API Key</label>
+                      <div className="api-key-inline">
+                        <input
+                          id={`${provider.id}-api-key`}
+                          type="password"
+                          value={apiKey}
+                          onChange={(event) => apiKeySetterByProvider[provider.id](event.target.value)}
+                          placeholder={provider.placeholder}
+                          autoComplete="off"
+                          className="settings-input"
+                        />
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={() => handleSaveApiKey(provider.id, apiKey)}
+                          disabled={buttonState.disabled || !apiKey.trim()}
+                          style={buttonState.style}
+                        >
+                          {buttonState.label}
+                        </button>
+                        {isConfigured && (
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            onClick={() => handleDeleteApiKey(provider.id)}
+                            aria-label={`删除 ${provider.name} API Key`}
+                          >
+                            删除
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-          {/* Groq */}
-          <div className="provider-form">
-            <h3>Groq</h3>
-            <p className="provider-desc">
-              {getProviderHint('groq').text}{' '}
-              <a href={getProviderHint('groq').link} target="_blank" rel="noopener noreferrer">
-                {getProviderHint('groq').linkText}
-              </a>
-            </p>
-            
-            <div className="api-key-input-group">
-              <input
-                type="password"
-                value={groqApiKey}
-                onChange={(e) => setGroqApiKey(e.target.value)}
-                placeholder="Enter your Groq API Key (gsk_...)"
-                className="settings-input"
-              />
-              
-              <div className="api-key-actions">
-                {(() => { const b = getSaveBtn('groq'); return (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleSaveApiKey('groq', groqApiKey)}
-                    disabled={b.disabled || !groqApiKey.trim()}
-                    style={b.style}
-                  >
-                    {b.label}
-                  </button>
-                ); })()}
-                
-                {groqApiKey && (
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDeleteApiKey('groq')}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {testResults.groq === 'success' && (
-              <div className="test-success">✅ Connection successful</div>
-            )}
-            {testResults.groq === 'error' && (
-              <div className="test-error">❌ Connection failed</div>
-            )}
-          </div>
+                  <p className="provider-key-link">
+                    {hint.text}{' '}
+                    {hint.link && (
+                      <a href={hint.link} target="_blank" rel="noopener noreferrer">
+                        {hint.linkText}
+                      </a>
+                    )}
+                    {hint.link && <span aria-hidden="true"> ↗</span>}
+                  </p>
 
-          {/* DeepSeek */}
-          <div className="provider-form">
-            <h3>DeepSeek</h3>
-            <p className="provider-desc">
-              {getProviderHint('deepseek').text}{' '}
-              <a href={getProviderHint('deepseek').link} target="_blank" rel="noopener noreferrer">
-                {getProviderHint('deepseek').linkText}
-              </a>
-            </p>
-            
-            <div className="api-key-input-group">
-              <input
-                type="password"
-                value={deepseekApiKey}
-                onChange={(e) => setDeepseekApiKey(e.target.value)}
-                placeholder="Enter your DeepSeek API Key (sk-...)"
-                className="settings-input"
-              />
-              
-              <div className="api-key-actions">
-                {(() => { const b = getSaveBtn('deepseek'); return (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleSaveApiKey('deepseek', deepseekApiKey)}
-                    disabled={b.disabled || !deepseekApiKey.trim()}
-                    style={b.style}
-                  >
-                    {b.label}
-                  </button>
-                ); })()}
-                
-                {deepseekApiKey && (
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDeleteApiKey('deepseek')}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {testResults.deepseek === 'success' && (
-              <div className="test-success">✅ Connection successful</div>
-            )}
-            {testResults.deepseek === 'error' && (
-              <div className="test-error">❌ Connection failed</div>
-            )}
-          </div>
-        </div>
-        
-        {/* End of Providers Grid */}
+                  {testResults[provider.id] === 'success' && (
+                    <div className="test-success" role="status">✅ 连接成功</div>
+                  )}
+                  {testResults[provider.id] === 'error' && (
+                    <div className="test-error" role="alert">❌ 连接失败</div>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );

@@ -171,6 +171,21 @@
   box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.2), 0 0 20px rgba(34, 211, 238, 0.1);
 }
 
+.console-input-wrapper.needs-input {
+  border-color: rgba(34, 211, 238, 0.28);
+}
+
+.sandbox-input-guidance {
+  margin: -6px 0 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sandbox-input-guidance strong {
+  color: var(--text);
+}
+
 .console-textarea {
   width: 100%;
   min-height: 120px;
@@ -184,6 +199,37 @@
   resize: vertical;
   line-height: 1.6;
   box-sizing: border-box;
+}
+
+.sandbox-prefill-notice {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+  background: rgba(34, 211, 238, 0.06);
+  color: #a5f3fc;
+  font-size: 12px;
+}
+
+.sandbox-prefill-notice span {
+  flex: 1;
+}
+
+.sandbox-prefill-notice button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 6px;
+  background: transparent;
+  color: #67e8f9;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sandbox-prefill-notice button:hover {
+  background: rgba(34, 211, 238, 0.1);
 }
 
 .console-action-bar {

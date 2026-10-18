@@ -97,6 +97,13 @@
 @media (min-width: 768px) {
   .pk-mascot-dock { --pk-rest-offset: 91px; --pk-peek-offset: 77px; --pk-hidden-offset: 176px; width: 132px; height: 145px; }
 }
+
+/* Purely decorative: hide on small screens so it never covers text or
+   intercepts taps. Desktop rendering and motion logic are unchanged. */
+@media (max-width: 768px) {
+  .pk-mascot-dock { display: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pk-mascot-dock, .pk-mascot-stage, .pk-mascot-core, .pk-mascot-sprout,
   .pk-mascot-bubble, .pk-mascot-sparkles, .pk-mascot-eye, .pk-mascot-cheek {

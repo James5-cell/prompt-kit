@@ -1,50 +1,39 @@
 import { promptSearchScore } from '../utils/promptSearch';
 import { useEffect, useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  GraduationCap, 
-  Code2, 
-  ExternalLink,
-  BookOpen,
-  Sparkles
-} from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight, BookOpen } from 'lucide-react';
 import { type Prompt } from '../types';
 import { promptService, isPublishedStatus } from '../services/promptService';
 import { useAuth } from '../auth/AuthContext';
 import LoginModal from '../components/LoginModal';
 import SEOHead from '../components/SEOHead';
 import PromptCard from '../components/PromptCard';
+import { buildReturnTo } from '../utils/returnTo';
+import {
+  getPromptCategoryMeta,
+  PROMPT_CATEGORY_OPTIONS,
+} from '../config/categoryMeta';
 import DashboardHero, { type CategoryOption } from '../components/DashboardHero';
 import { canTryPrompt, selectFeatured } from '../utils/promptUsage';
 import './Dashboard.css';
 
-// ── 分类元数据 ──────────────────────────────────────────────────────────
-const CATEGORY_MAP: Record<string, { label: string; icon: string; color: string; class: string }> = {
-  dev:         { label: '研发工程', icon: 'ri:terminal-box-line', color: 'var(--color-dev)',         class: 'theme-dev' },
-  development: { label: '研发工程', icon: 'ri:terminal-box-line', color: 'var(--color-dev)',         class: 'theme-dev' },
-  translation: { label: '双语精译', icon: 'ri:translate-2',       color: 'var(--color-translation)', class: 'theme-translation' },
-  thinking:    { label: '深度思考', icon: 'ri:brain-line',        color: 'var(--color-thinking)',    class: 'theme-thinking' },
-  finance:     { label: '商业金融', icon: 'ri:line-chart-line',   color: 'var(--color-finance)',     class: 'theme-finance' },
-  tools:       { label: '效率工具', icon: 'ri:tools-line',        color: 'var(--color-tools)',       class: 'theme-tools' },
-  learning:    { label: '学习研究', icon: 'ri:book-read-line',    color: 'var(--color-learning)',    class: 'theme-learning' },
-  writing:     { label: '内容创作', icon: 'ri:quill-pen-line',    color: 'var(--color-writing)',     class: 'theme-writing' },
-};
-
 // 首页主题分类
 const CATEGORIES: CategoryOption[] = [
   { id: 'all', label: '全部', icon: 'ri:apps-line' },
-  { id: 'learning', label: '学习研究', icon: 'ri:book-read-line' },
-  { id: 'writing', label: '内容创作', icon: 'ri:quill-pen-line' },
-  { id: 'dev', label: '研发工程', icon: 'ri:terminal-box-line', color: '#00f2fe' },
-  { id: 'translation', label: '双语精译', icon: 'ri:translate-2', color: '#ff2a85' },
-  { id: 'thinking', label: '深度思考', icon: 'ri:brain-line', color: '#bf5af2' },
-  { id: 'finance', label: '商业金融', icon: 'ri:line-chart-line', color: '#00ff87' },
-  { id: 'tools', label: '效率工具', icon: 'ri:tools-line', color: '#06b6d4' },
+  ...PROMPT_CATEGORY_OPTIONS.map(category => ({
+    id: category.key,
+    label: category.label,
+    icon: category.icon,
+    color: category.color,
+  })),
 ];
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAdmin, userEmail } = useAuth();
+  // Safe local return path preserved by detail-page "back" links.
+  const returnTo = buildReturnTo(location.pathname, location.search);
 
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,37 +84,79 @@ export default function Dashboard() {
 
   // 管理员加星推荐，最多三条
   const FEATURED_LIMIT = 3;
+  const SEARCH_PREVIEW_LIMIT = 6;
 
-  // 过滤提示词列表（严格对齐 5 大实战分类与 dev/development 别名兼容）
-  const filteredPrompts = useMemo(() => {
+  // 分类浏览范围（严格对齐 5 大实战分类与 dev/development 别名兼容）
+  const categoryPrompts = useMemo(() => {
     return prompts.filter((p) => {
       const pCat = (p.category ?? '').toLowerCase();
-      const matchCat =
-        selectedCategory === 'all' ? true : selectedCategory === 'dev'
-          ? (pCat === 'dev' || pCat === 'development')
-          : pCat === selectedCategory.toLowerCase();
+      return selectedCategory === 'all' ? true : selectedCategory === 'dev'
+        ? (pCat === 'dev' || pCat === 'development')
+        : pCat === selectedCategory.toLowerCase();
+    });
+  }, [prompts, selectedCategory]);
 
-      const matchSearch = promptSearchScore(p, searchQuery) > 0;
+  // 首页搜索始终检索全库，不受当前分类浏览范围影响。
+  const searchMatches = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return prompts
+      .filter((p) => promptSearchScore(p, searchQuery) > 0)
+      .sort((a, b) => promptSearchScore(b, searchQuery) - promptSearchScore(a, searchQuery));
+  }, [prompts, searchQuery]);
 
-      return matchCat && matchSearch;
-    }).sort((a, b) => promptSearchScore(b, searchQuery) - promptSearchScore(a, searchQuery));
-  }, [prompts, selectedCategory, searchQuery]);
-
-  // 搜索展示匹配项；推荐仅包含管理员加星项
+  // 搜索展示全库匹配项预览；无搜索时仅包含管理员加星项
   const featuredPrompts = useMemo(() => {
-    return searchQuery.trim() ? filteredPrompts.slice(0, FEATURED_LIMIT) : selectFeatured(filteredPrompts, FEATURED_LIMIT);
-  }, [filteredPrompts, searchQuery]);
+    return searchQuery.trim()
+      ? searchMatches.slice(0, SEARCH_PREVIEW_LIMIT)
+      : selectFeatured(categoryPrompts, FEATURED_LIMIT);
+  }, [categoryPrompts, searchMatches, searchQuery]);
 
-  // 回车直接前往 Prompt Library 检索对应分类或关键词
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const q = searchQuery.trim();
-      if (q) {
-        navigate(`/prompts?q=${encodeURIComponent(q)}${selectedCategory === 'all' ? '' : `&category=${selectedCategory}`}`);
-      } else {
-        navigate(selectedCategory === 'all' ? '/prompts' : `/prompts?category=${selectedCategory}`);
-      }
+  const isSearching = !!searchQuery.trim();
+
+  const libraryMatchCount = searchMatches.length;
+
+  // 唯一结果入口：有关键词时检索全库，无关键词时承接当前分类。
+  const resultsHref = useMemo(() => {
+    const q = searchQuery.trim();
+    if (q) return `/prompts?q=${encodeURIComponent(q)}`;
+    return selectedCategory === 'all' ? '/prompts' : `/prompts?category=${selectedCategory}`;
+  }, [searchQuery, selectedCategory]);
+
+  const currentCategoryLabel = selectedCategory === 'all'
+    ? '全部分类'
+    : getPromptCategoryMeta(selectedCategory).label;
+  const libraryScopeCount = categoryPrompts.length;
+
+  // 空状态区分全库搜索无结果与当前分类暂无精选。
+  const emptyState = useMemo(() => {
+    if (!isSearching) {
+      const scope = selectedCategory === 'all' ? '全部' : currentCategoryLabel;
+      return {
+        title: `${scope}指令暂无精选`,
+        desc: '可浏览该范围的全部指令，或切换分类查看其他精选。',
+        actionLabel: `浏览${scope}全部指令`,
+        href: resultsHref,
+        showLibraryLink: false,
+      };
     }
+    const query = searchQuery.trim();
+    return {
+      title: `指令库中没有匹配「${query}」的指令`,
+      desc: '试试更短或更通用的关键词，也可以只输入一个词。',
+      actionLabel: '清空搜索',
+      href: null,
+      showLibraryLink: true,
+    };
+  }, [isSearching, searchQuery, selectedCategory, currentCategoryLabel, resultsHref]);
+
+  // 回车进入指令库的全量结果列表。
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') navigate(resultsHref);
+  };
+
+  const handleSelectCategory = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (searchQuery.trim()) setSearchQuery('');
   };
 
   // 一键复制 Prompt 全文
@@ -135,13 +166,14 @@ export default function Dashboard() {
 
   // 点击「⚡ 在线测试」硬卡点逻辑
   const handleTestClick = (prompt: Prompt) => {
-    if (!canTryPrompt(prompt)) { navigate(`/p/${prompt.id}#usage-guide`); return; }
+    const linkState = returnTo ? { returnTo } : undefined;
+    if (!canTryPrompt(prompt)) { navigate(`/p/${prompt.id}`, { state: linkState }); return; }
     if (!userEmail) {
       setLoginModalDesc(`登录后即可免费解锁「${prompt.title}」轻量文本试用，输入内容即可体验效果。`);
       setPendingTrialId(prompt.id);
       setIsLoginModalOpen(true);
     } else {
-      navigate(`/prompts/${prompt.id}/run`);
+      navigate(`/prompts/${prompt.id}/run`, { state: linkState });
     }
   };
 
@@ -149,8 +181,6 @@ export default function Dashboard() {
     const updated = await promptService.toggleFavorite(prompt.id);
     setPrompts(prev => prev.map(p => p.id === updated.id ? updated : p));
   };
-
-  const currentCategoryLabel = CATEGORY_MAP[selectedCategory]?.label || '全部分类';
 
   return (
     <div className="dashboard animate-fade-in">
@@ -169,149 +199,81 @@ export default function Dashboard() {
         onSearchKeyDown={handleSearchKeyDown}
         onSearchClear={() => setSearchQuery('')}
         selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
+        onSelectCategory={handleSelectCategory}
         categories={CATEGORIES}
-        featuredCount={featuredPrompts.length}
-        isSearching={!!searchQuery.trim()}
-        totalFilteredCount={filteredPrompts.length}
-        totalVaultCount={prompts.length}
-        onNavigateToLibrary={() => {
-          const q = searchQuery.trim();
-          if (q) {
-            navigate(`/prompts?q=${encodeURIComponent(q)}${selectedCategory === 'all' ? '' : `&category=${selectedCategory}`}`);
-          } else {
-            navigate(selectedCategory === 'all' ? '/prompts' : `/prompts?category=${selectedCategory}`);
-          }
-        }}
+        isSearching={isSearching}
+        matchCount={libraryMatchCount}
+        shownCount={featuredPrompts.length}
+        resultsHref={resultsHref}
       />
 
       {/* ── 主体区域：严格对齐的精选推荐指令卡片网格 (Featured Prompts Grid) ── */}
       <section className="dashboard-prompt-section">
+        <div className="dashboard-section-head">
+          <h2 className="dashboard-section-title">{isSearching ? '搜索结果' : '精选推荐'}</h2>
+          {isSearching ? (
+            <p className="dashboard-section-subtitle">按匹配度排序</p>
+          ) : (
+            <Link to={resultsHref} className="dashboard-library-link">
+              浏览全部 {libraryScopeCount} 条{selectedCategory === 'all' ? '' : currentCategoryLabel}指令
+              <ArrowRight size={15} />
+            </Link>
+          )}
+        </div>
         {isLoading ? <p role="status" className="py-8 text-center text-zinc-300">正在读取指令库…</p> : loadError ? <div role="alert" className="py-8 text-center"><p>{loadError}</p><button onClick={loadData} className="btn-secondary mt-3">重新加载</button></div> : featuredPrompts.length > 0 ? (
-          <>
-            <div className="dashboard-prompts-grid">
-              {featuredPrompts.map((prompt) => {
-                const categoryMeta = prompt.category ? CATEGORY_MAP[prompt.category.toLowerCase()] : null;
+          <div className="dashboard-prompts-grid">
+            {featuredPrompts.map((prompt) => {
+              const categoryMeta = getPromptCategoryMeta(prompt.category);
 
-                return (
-                  <PromptCard
-                    key={prompt.id}
-                    prompt={prompt}
-                    isAdmin={isAdmin}
-                    categoryLabel={categoryMeta?.label}
-                    categoryIcon={categoryMeta?.icon}
-                    categoryColor={categoryMeta?.color}
-                    onCopy={handleCopy}
-                    onTest={handleTestClick}
-                    onFavorite={handleFavorite}
-                  />
-                );
-              })}
-            </div>
-
-            {/* ── 底部全量引导大按钮模块 (Lead to Library 动态联动当前分类) ── */}
-            <div className="lead-to-library-banner">
-              <div className="lead-library-badge">
-                <BookOpen size={13} className="text-primary" />
-                <span>FULL ASSET REPOSITORY</span>
-              </div>
-
-              <h3 className="lead-library-title">
-                探索完整指令库
-                <span className="lead-library-count">（当前全库已收录 {prompts.length} 项）</span>
-              </h3>
-
-              <p className="lead-library-desc">
-                管理员加星的指令会进入精选。完整指令库包含「{currentCategoryLabel}」的全部收录，并标明哪些可以试用、哪些适合在其他 Agent 中使用。
-              </p>
-
-              <div className="lead-library-actions">
-                <Link
-                  to={
-                    searchQuery.trim()
-                      ? `/prompts?q=${encodeURIComponent(searchQuery.trim())}${selectedCategory === 'all' ? '' : `&category=${selectedCategory}`}`
-                      : selectedCategory === 'all' ? '/prompts' : `/prompts?category=${selectedCategory}`
-                  }
-                  className="btn-lead-library"
-                >
-                  <span>探索「{currentCategoryLabel}」及全库所有指令 (Prompt Library) →</span>
-                </Link>
-              </div>
-            </div>
-          </>
+              return (
+                <PromptCard
+                  key={prompt.id}
+                  prompt={prompt}
+                  isAdmin={isAdmin}
+                  returnTo={returnTo}
+                  categoryLabel={categoryMeta.label}
+                  categoryIcon={categoryMeta.icon}
+                  categoryColor={categoryMeta.color}
+                  onCopy={handleCopy}
+                  onTest={handleTestClick}
+                  onFavorite={handleFavorite}
+                />
+              );
+            })}
+            {!isSearching && (
+              <Link
+                to={resultsHref}
+                className="dashboard-library-card"
+                aria-label={`探索完整指令库，共 ${libraryScopeCount} 条${selectedCategory === 'all' ? '' : currentCategoryLabel}指令`}
+              >
+                <span className="dashboard-library-card-icon"><BookOpen size={22} /></span>
+                <span className="dashboard-library-card-content">
+                  <span className="dashboard-library-card-kicker">继续探索</span>
+                  <strong>探索完整指令库</strong>
+                  <small>共 {libraryScopeCount} 条{selectedCategory === 'all' ? '' : currentCategoryLabel}指令，按分类和使用条件快速筛选。</small>
+                  <span className="dashboard-library-card-action">
+                    进入指令库 <ArrowRight size={16} />
+                  </span>
+                </span>
+              </Link>
+            )}
+          </div>
         ) : (
           <div className="dashboard-empty-state">
             <BookOpen size={28} className="text-slate-500" />
-            <h3>{searchQuery.trim() ? '未找到匹配的指令' : '这个分类暂未设置精选'}</h3>
-            <p>{searchQuery.trim() ? '试试更短的关键词，或清空搜索。' : '管理员可在指令库点击星星。加星后，按创建时间从新到旧展示前三条。'}</p>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
-              }}
-              className="btn-secondary"
-              style={{ marginTop: '12px' }}
-            >
-              重置所有筛选项
-            </button>
-            <Link to="/prompts" className="btn-secondary ml-2">浏览完整指令库</Link>
+            <h3>{emptyState.title}</h3>
+            <p>{emptyState.desc}</p>
+            <div className="dashboard-empty-actions">
+              {emptyState.href ? (
+                <Link to={emptyState.href} className="btn-primary">{emptyState.actionLabel}</Link>
+              ) : (
+                <button onClick={() => setSearchQuery('')} className="btn-primary">{emptyState.actionLabel}</button>
+              )}
+              {emptyState.showLibraryLink && <Link to="/prompts" className="btn-secondary">浏览完整指令库</Link>}
+            </div>
           </div>
         )}
       </section>
-
-      {/* ── 底部：Explore More Services 生态联动 ─────────────────────── */}
-      <div className="dashboard-quick-actions">
-        <h3 className="quick-actions-title">Explore Ecosystem Services</h3>
-        <div className="quick-actions-grid">
-          <a
-            href="https://205055.xyz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="quick-action-card"
-          >
-            <span className="quick-action-icon">
-              <GraduationCap size={16} />
-            </span>
-            <div>
-              <div className="quick-action-name">Skill Lab</div>
-              <div className="quick-action-desc">Hands-on guides for mastering AI tools</div>
-            </div>
-            <ExternalLink size={14} className="quick-action-external" />
-          </a>
-
-          <a
-            href="https://205022.xyz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="quick-action-card"
-          >
-            <span className="quick-action-icon">
-              <Code2 size={16} />
-            </span>
-            <div>
-              <div className="quick-action-name">DevLibrary</div>
-              <div className="quick-action-desc">Bilingual resources for programming depth</div>
-            </div>
-            <ExternalLink size={14} className="quick-action-external" />
-          </a>
-
-          <a
-            href="https://www.postsoma-2050.com/ai-insights"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="quick-action-card"
-          >
-            <span className="quick-action-icon">
-              <Sparkles size={16} />
-            </span>
-            <div>
-              <div className="quick-action-name">AI Insights</div>
-              <div className="quick-action-desc">Essays, notes, and my personal AI library</div>
-            </div>
-            <ExternalLink size={14} className="quick-action-external" />
-          </a>
-        </div>
-      </div>
 
       {/* ── 未登录拦截 Auth 弹窗 ──────────────────────────────────── */}
       <LoginModal

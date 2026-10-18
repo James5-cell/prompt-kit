@@ -1,37 +1,35 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon as RiIcon } from '@iconify/react';
 import { ICON_SIZE } from '../config/iconSizes';
 import SEOHead from '../components/SEOHead';
 import './About.css';
 
+const usageModes = [
+  { icon: 'ri:play-circle-line', title: '直接试用', description: '指令已内置必要背景，可直接打开试用区运行。' },
+  { icon: 'ri:file-text-line', title: '需要文本', description: '先填写文章、需求或数据，再合成并复制完整指令。' },
+  { icon: 'ri:external-link-line', title: '外部环境', description: '需要浏览器、代码仓库或特定 Agent 等外部工具配合。' },
+];
+
+const standards = [
+  '用途明确：说明适合解决什么问题，以及不适合什么场景。',
+  '输入清楚：列出必需文本、变量或外部环境，减少反复试错。',
+  '结构可复用：保留角色、任务、约束与输出格式，方便按需替换。',
+  '来源透明：记录收录日期，持续维护重复、失效或表达不清的指令。',
+];
+
+const steps = [
+  ['找到', '在首页搜索，或按分类与标签浏览指令库。'],
+  ['看懂', '查看用途摘要、使用条件与所需输入。'],
+  ['使用', '填写变量后复制，或进入试用区直接运行。'],
+  ['调整', '结合模型输出，补充上下文并迭代提示词。'],
+];
+
 export default function About() {
-  const [copiedBibtex, setCopiedBibtex] = useState(false);
-
-  const bibtexText = `@misc{promptkit2026,
-  author = {postsoma-2050},
-  title = {Prompt Kit: AI Prompt Knowledge Base \\& Workflow Studio},
-  year = {2026},
-  publisher = {GitHub},
-  howpublished = {\\url{https://www.205011.xyz}},
-  note = {Canonical domain for production AI prompt templates}
-}`;
-
-  const handleCopyBibtex = async () => {
-    try {
-      await navigator.clipboard.writeText(bibtexText);
-      setCopiedBibtex(true);
-      setTimeout(() => setCopiedBibtex(false), 2000);
-    } catch {
-      // Fallback
-    }
-  };
-
   return (
     <div className="about-page animate-fade-in">
       <SEOHead
-        title="About & E-E-A-T Standards — Prompt Kit"
-        description="Prompt Kit platform mission, creator credentials (postsoma-2050), data privacy compliance, machine knowledge feeds (llms.txt), and academic citation guidelines."
+        title="关于 Prompt Kit — 收录标准与使用指南"
+        description="了解 Prompt Kit 的指令收录标准、三种使用方式，以及从搜索到试用、复制和调整的完整流程。"
         canonical="https://www.205011.xyz/about"
         ogImage="https://www.205011.xyz/og-image.png"
         jsonLd={{
@@ -41,9 +39,9 @@ export default function About() {
               '@type': 'AboutPage',
               '@id': 'https://www.205011.xyz/about#aboutpage',
               'url': 'https://www.205011.xyz/about',
-              'name': 'About Prompt Kit — Platform Mission & E-E-A-T Standards',
-              'description': 'Platform mission, creator background, security standards, and machine feed index.',
-              'isPartOf': { '@id': 'https://www.205011.xyz/#website' }
+              'name': '关于 Prompt Kit — 收录标准与使用指南',
+              'description': 'Prompt Kit 的指令收录标准、使用方式与工作流程。',
+              'isPartOf': { '@id': 'https://www.205011.xyz/#website' },
             },
             {
               '@type': 'Organization',
@@ -51,236 +49,99 @@ export default function About() {
               'name': 'Prompt Kit',
               'url': 'https://www.205011.xyz/',
               'logo': 'https://www.205011.xyz/logo.png',
-              'founder': {
-                '@type': 'Person',
-                'name': 'postsoma-2050',
-                'alternateName': 'James5-cell'
-              }
+              'founder': { '@type': 'Person', 'name': 'postsoma-2050', 'alternateName': 'James5-cell' },
             },
             {
               '@type': 'BreadcrumbList',
               '@id': 'https://www.205011.xyz/about#breadcrumb',
               'itemListElement': [
-                {
-                  '@type': 'ListItem',
-                  'position': 1,
-                  'name': 'Home',
-                  'item': 'https://www.205011.xyz/'
-                },
-                {
-                  '@type': 'ListItem',
-                  'position': 2,
-                  'name': 'About & E-E-A-T',
-                  'item': 'https://www.205011.xyz/about'
-                }
-              ]
-            }
-          ]
+                { '@type': 'ListItem', 'position': 1, 'name': '首页', 'item': 'https://www.205011.xyz/' },
+                { '@type': 'ListItem', 'position': 2, 'name': '关于与收录标准', 'item': 'https://www.205011.xyz/about' },
+              ],
+            },
+          ],
         }}
       />
 
-      {/* Hero Header Area */}
       <header className="about-header">
         <div className="eyebrow-label">
           <RiIcon icon="ri:shield-check-line" width={14} height={14} />
-          <span>E-E-A-T & Transparency Standards</span>
+          <span>收录标准 · 使用说明</span>
         </div>
-        <h1 className="about-title">About Prompt Kit</h1>
+        <h1 className="about-title">关于 Prompt Kit</h1>
         <p className="about-subtitle">
-          A professional prompt engineering repository, local-first workflow studio, and multi-model execution workbench designed for AI creators, researchers, and developers.
+          一个面向真实工作场景的 AI 指令库。每条指令都尽量讲清楚用途、使用条件和所需输入，让你先看懂，再直接使用。
         </p>
+        <div className="about-primary-actions">
+          <Link to="/prompts" className="action-btn btn-primary-cta">
+            <RiIcon icon="ri:book-shelf-line" width={16} height={16} />
+            <span>浏览指令库</span>
+          </Link>
+          <Link to="/dashboard" className="action-btn btn-secondary-cta">
+            <RiIcon icon="ri:search-line" width={16} height={16} />
+            <span>首页搜索</span>
+          </Link>
+        </div>
       </header>
 
-      {/* Main Grid: Platform Mission & Creator Credentials */}
-      <div className="about-sections-grid">
-        {/* Section 1: Platform Mission */}
-        <section className="about-card">
-          <div className="section-header">
-            <span className="section-icon theme-tools">
-              <RiIcon icon="ri:compass-3-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
-            </span>
-            <h2>Platform Mission</h2>
-          </div>
-          <p className="card-description">
-            Prompt Kit replaces ad-hoc prompt notes with a structured, versioned, and testable prompt engineering system. We empower users to transform raw instructions into reliable AI assets.
-          </p>
-          <ul className="mission-bullets">
-            <li>
-              <RiIcon icon="ri:checkbox-circle-fill" width={16} height={16} className="bullet-icon" />
-              <span><strong>Curated Knowledge Base:</strong> High-quality prompt templates categorized by function, language, and use case.</span>
-            </li>
-            <li>
-              <RiIcon icon="ri:checkbox-circle-fill" width={16} height={16} className="bullet-icon" />
-              <span><strong>Multi-Model Workbench:</strong> Test prompts live against OpenAI, Anthropic, Gemini, and NVIDIA NIM APIs.</span>
-            </li>
-            <li>
-              <RiIcon icon="ri:checkbox-circle-fill" width={16} height={16} className="bullet-icon" />
-              <span><strong>Local-First Performance:</strong> High-speed client persistence via IndexedDB backed by optional cloud sync.</span>
-            </li>
-          </ul>
-        </section>
-
-        {/* Section 2: Creator Credentials & Background */}
-        <section className="about-card">
-          <div className="section-header">
-            <span className="section-icon theme-dev">
-              <RiIcon icon="ri:user-star-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
-            </span>
-            <h2>Creator Credentials & Background</h2>
-          </div>
-          <div className="creator-profile-block">
-            <div className="creator-info">
-              <div className="creator-names">
-                <span className="creator-primary">postsoma-2050</span>
-                <span className="creator-handle">(James5-cell)</span>
-              </div>
-              <p className="creator-bio">
-                Lead architect and engineer focusing on multi-model prompt optimization, local-first web applications, and autonomous agent workflows.
-              </p>
-            </div>
-
-            <div className="creator-tags">
-              <span className="capability-tag"><RiIcon icon="ri:code-s-slash-line" width={13} height={13} /> Full-Stack AI Engineer</span>
-              <span className="capability-tag"><RiIcon icon="ri:brain-line" width={13} height={13} /> Multi-Model Prompt Specialist</span>
-              <span className="capability-tag"><RiIcon icon="ri:lock-password-line" width={13} height={13} /> Privacy-First Architecture</span>
-            </div>
-
-            <div className="creator-meta">
-              <a href="https://github.com/James5-cell/prompt-kit" target="_blank" rel="noopener noreferrer" className="github-link">
-                <RiIcon icon="ri:github-fill" width={16} height={16} />
-                <span>GitHub Repository</span>
-                <RiIcon icon="ri:arrow-right-up-line" width={14} height={14} className="external-arrow" />
-              </a>
-              <span className="last-updated-badge">Last updated: July 2026</span>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* Section 3: Privacy, Security & Data Governance */}
-      <section className="about-card privacy-section">
+      <section className="about-card standards-card">
         <div className="section-header">
-          <span className="section-icon theme-finance">
-            <RiIcon icon="ri:shield-keyhole-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
-          </span>
-          <h2>Privacy, Security & Data Governance</h2>
+          <span className="section-icon"><RiIcon icon="ri:checkbox-multiple-line" width={ICON_SIZE.md} height={ICON_SIZE.md} /></span>
+          <div><h2>指令收录标准</h2><p>少一点黑盒模板，多一点可判断、可复用的上下文。</p></div>
         </div>
-        <p className="card-description">
-          We prioritize data sovereignty and minimal remote transmission across all workbench operations.
-        </p>
+        <ul className="standards-list">
+          {standards.map((standard, index) => (
+            <li key={standard}><span className="standard-number">{String(index + 1).padStart(2, '0')}</span><span>{standard}</span></li>
+          ))}
+        </ul>
+      </section>
 
-        <div className="privacy-cards-grid">
-          <div className="privacy-feature-card">
-            <div className="feature-card-header">
-              <RiIcon icon="ri:key-2-line" width={20} height={20} className="feature-icon" />
-              <h3>Client API Key Isolation</h3>
-            </div>
-            <p>API keys entered in Settings are stored strictly in client local storage and are never sent to Prompt Kit servers.</p>
-          </div>
-
-          <div className="privacy-feature-card">
-            <div className="feature-card-header">
-              <RiIcon icon="ri:database-2-line" width={20} height={20} className="feature-icon" />
-              <h3>IndexedDB & Firestore Sync</h3>
-            </div>
-            <p>Local state operates via IndexedDB. Public and authenticated cloud data use secure Firebase Firestore security rules.</p>
-          </div>
-
-          <div className="privacy-feature-card">
-            <div className="feature-card-header">
-              <RiIcon icon="ri:git-repository-private-line" width={20} height={20} className="feature-icon" />
-              <h3>Zero Model Training</h3>
-            </div>
-            <p>Your workspace prompts and runs are never sold, harvested, or used for AI model training.</p>
-          </div>
+      <section className="about-card">
+        <div className="section-header">
+          <span className="section-icon"><RiIcon icon="ri:route-line" width={ICON_SIZE.md} height={ICON_SIZE.md} /></span>
+          <div><h2>三种使用方式</h2><p>先看使用条件，再选择最省事的入口。</p></div>
+        </div>
+        <div className="usage-mode-grid">
+          {usageModes.map(mode => (
+            <article className="usage-mode-card" key={mode.title}>
+              <span className="usage-mode-icon"><RiIcon icon={mode.icon} width={20} height={20} /></span>
+              <h3>{mode.title}</h3><p>{mode.description}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      {/* Section 4: Machine Knowledge Feeds (GEO / RAG Index) */}
-      <section className="about-card machine-feeds-section">
+      <section className="about-card">
         <div className="section-header">
-          <span className="section-icon theme-learning">
-            <RiIcon icon="ri:cpu-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
-          </span>
-          <h2>Machine Knowledge Feeds (GEO / RAG Index)</h2>
+          <span className="section-icon"><RiIcon icon="ri:flow-chart" width={ICON_SIZE.md} height={ICON_SIZE.md} /></span>
+          <div><h2>如何使用</h2><p>从找到指令到得到可用结果，只保留四步。</p></div>
         </div>
-        <p className="card-description">
-          Structured Markdown feeds optimized for RAG retrieval agents, LLM search engines (ChatGPT, Claude, Perplexity), and web indexers.
-        </p>
-
-        <div className="resource-cards-grid">
-          <a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="resource-card">
-            <div className="resource-card-top">
-              <span className="resource-icon"><RiIcon icon="ri:file-text-line" width={20} height={20} /></span>
-              <RiIcon icon="ri:arrow-right-up-line" width={16} height={16} className="resource-arrow" />
-            </div>
-            <code className="resource-filename">llms.txt</code>
-            <p className="resource-desc">Concise Markdown index directory outlining platform structure, schemas, and AEO policy.</p>
-          </a>
-
-          <a href="/llms-full.txt" target="_blank" rel="noopener noreferrer" className="resource-card highlight">
-            <div className="resource-card-top">
-              <span className="resource-icon"><RiIcon icon="ri:file-code-line" width={20} height={20} /></span>
-              <RiIcon icon="ri:arrow-right-up-line" width={16} height={16} className="resource-arrow" />
-            </div>
-            <code className="resource-filename">llms-full.txt</code>
-            <p className="resource-desc">Full-text knowledge graph detailing functional domains, multi-model execution, and playbooks.</p>
-          </a>
-
-          <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" className="resource-card">
-            <div className="resource-card-top">
-              <span className="resource-icon"><RiIcon icon="ri:global-line" width={20} height={20} /></span>
-              <RiIcon icon="ri:arrow-right-up-line" width={16} height={16} className="resource-arrow" />
-            </div>
-            <code className="resource-filename">sitemap.xml</code>
-            <p className="resource-desc">Standardized XML sitemap for traditional search engines and crawlers.</p>
-          </a>
-        </div>
+        <ol className="usage-steps">
+          {steps.map(([title, description], index) => (
+            <li key={title}><span className="step-number">{index + 1}</span><div><h3>{title}</h3><p>{description}</p></div></li>
+          ))}
+        </ol>
       </section>
 
-      {/* Section 5: Citation & Academic Standards */}
-      <section className="about-card citation-section">
+      <section className="about-card secondary-card">
         <div className="section-header">
-          <span className="section-icon theme-writing">
-            <RiIcon icon="ri:draft-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
-          </span>
-          <h2>Citation & Academic Standards</h2>
+          <span className="section-icon"><RiIcon icon="ri:shield-keyhole-line" width={ICON_SIZE.md} height={ICON_SIZE.md} /></span>
+          <div><h2>来源、隐私与开放索引</h2><p>保持来源可追溯，密钥与本地数据默认留在浏览器。</p></div>
         </div>
-        <p className="card-description">
-          When referencing Prompt Kit research or prompt templates, please cite using the standard formats below:
-        </p>
-
-        <div className="code-block-container">
-          <div className="code-block-header">
-            <span className="code-block-title">BibTeX Standard</span>
-            <button className="copy-code-btn" onClick={handleCopyBibtex}>
-              <RiIcon icon={copiedBibtex ? "ri:checkbox-circle-fill" : "ri:file-copy-line"} width={14} height={14} />
-              {copiedBibtex ? "Copied!" : "Copy BibTeX"}
-            </button>
-          </div>
-          <pre className="code-content"><code>{bibtexText}</code></pre>
+        <div className="secondary-links">
+          <a href="https://github.com/James5-cell/prompt-kit" target="_blank" rel="noopener noreferrer">
+            <RiIcon icon="ri:github-line" width={18} height={18} />
+            <span><strong>GitHub 源码</strong><small>查看实现与更新记录</small></span>
+            <RiIcon icon="ri:arrow-right-up-line" width={14} height={14} />
+          </a>
+          <a href="/llms.txt" target="_blank" rel="noopener noreferrer">
+            <RiIcon icon="ri:file-text-line" width={18} height={18} />
+            <span><strong>机器可读索引</strong><small>llms.txt · 面向 AI 搜索与检索</small></span>
+            <RiIcon icon="ri:arrow-right-up-line" width={14} height={14} />
+          </a>
         </div>
-
-        <div className="plain-citation-box">
-          <span className="plain-citation-label">Plain Text Citation:</span>
-          <p className="plain-citation-text">
-            postsoma-2050. (2026). <em>Prompt Kit: AI Prompt Knowledge Base & Multi-Model Execution Studio</em>. Available at: <a href="https://www.205011.xyz">https://www.205011.xyz</a>.
-          </p>
-        </div>
+        <p className="privacy-note">API Key 保存在浏览器本地；除非主动运行指令，否则不会发送到外部模型服务。</p>
       </section>
-
-      {/* Action Footer */}
-      <footer className="about-actions-footer">
-        <Link to="/prompts" className="action-btn btn-primary-cta">
-          <RiIcon icon="ri:book-shelf-line" width={16} height={16} />
-          <span>Explore Prompt Library</span>
-        </Link>
-        <a href="https://github.com/James5-cell/prompt-kit" target="_blank" rel="noopener noreferrer" className="action-btn btn-secondary-cta">
-          <RiIcon icon="ri:github-line" width={16} height={16} />
-          <span>GitHub Repository</span>
-          <RiIcon icon="ri:arrow-right-up-line" width={14} height={14} />
-        </a>
-      </footer>
     </div>
   );
 }

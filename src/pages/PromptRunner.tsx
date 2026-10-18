@@ -1,12 +1,14 @@
 import { buildTrialSystem, estimateContext, getTrialInputLimit, trialBudgetError, TRIAL_INPUT_TOKENS } from '../utils/trialBudget';
 import { Link } from 'react-router-dom';
 import { canTryPrompt, validateTrialInput } from '../utils/promptUsage';
+import { getPromptUsagePlan } from '../utils/promptDisplay';
 import PromptUsageNotice from '../components/PromptUsageNotice';
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Icon as RiIcon } from '@iconify/react';
 import { ICON_SIZE } from '../config/iconSizes';
 import ReactMarkdown from 'react-markdown';
+import { resolveReturnTo } from '../utils/returnTo';
 
 import { type Prompt, type Run } from '../types';
 import { promptService } from '../services/promptService';
@@ -40,6 +42,8 @@ export default function PromptRunner() {
   useNoIndex();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = resolveReturnTo(location.state);
   const { isAdmin } = useAuth();
   
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -47,6 +51,7 @@ export default function PromptRunner() {
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   
   const [testInput, setTestInput] = useState<string>('');
+  const [prefilledInput, setPrefilledInput] = useState('');
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [testError, setTestError] = useState<string>('');
   
@@ -69,6 +74,7 @@ export default function PromptRunner() {
   const requestRef = useRef<AbortController | null>(null);
   const failedInputRef = useRef('');
   const topRef = useRef<HTMLDivElement>(null);
+  const setupInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setPrompt(null);
@@ -79,10 +85,19 @@ export default function PromptRunner() {
     if (id) promptService.getPrompt(id).then(loaded => {
       if (!active) return;
       if (loaded) { setPrompt(loaded); setIsFavorite(!!loaded.favorite); }
-      else navigate('/prompts');
-    }).catch(() => { if (active) navigate('/prompts'); });
+      else navigate(returnTo);
+    }).catch(() => { if (active) navigate(returnTo); });
     return () => { active = false; requestRef.current?.abort(); requestRef.current = null; };
-  }, [id]);
+  }, [id, returnTo]);
+
+  useEffect(() => {
+    if (!prompt) return;
+    const routePrefill = (location.state as { prefillText?: unknown } | null)?.prefillText;
+    const nextInput = typeof routePrefill === 'string' ? routePrefill : '';
+    if (!nextInput) return;
+    setTestInput(nextInput);
+    setPrefilledInput(nextInput);
+  }, [prompt, location.state]);
 
   // Load default provider and model from Settings on mount
   useEffect(() => {
@@ -178,7 +193,14 @@ export default function PromptRunner() {
 
     const rawInput = (textToSend !== undefined ? textToSend : testInput).trim();
     const inputError = validateTrialInput(prompt, rawInput);
-    if (inputError) { setTestError(inputError); return; }
+    if (inputError) {
+      setTestError(inputError);
+      requestAnimationFrame(() => {
+        setupInputRef.current?.focus();
+        setupInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      return;
+    }
     const userMsgContent = rawInput;
 
     const firstInput = messages.find(m => m.role === 'user')?.content ?? userMsgContent;
@@ -328,7 +350,7 @@ export default function PromptRunner() {
     return <main className="mx-auto flex max-w-3xl flex-col gap-5 p-6">
       <h1 className="text-2xl font-semibold text-zinc-100">{prompt.title}</h1>
       <PromptUsageNotice prompt={prompt} />
-      <div className="flex gap-3"><button className="btn-primary" onClick={handleCopyPrompt}>{copiedPrompt ? '已复制' : '复制完整指令'}</button><Link className="btn-secondary" to={`/p/${prompt.id}`}>查看详情</Link></div>
+      <div className="flex gap-3"><button className="btn-primary" onClick={handleCopyPrompt}>{copiedPrompt ? '已复制' : '复制完整指令'}</button><Link className="btn-secondary" to={`/p/${prompt.id}`} state={{ returnTo }}>查看详情</Link></div>
     </main>;
   }
 
@@ -391,6 +413,9 @@ export default function PromptRunner() {
                 setTestInput={setTestInput}
                 isRunning={isRunning}
                 onRun={() => handleSendMessage(testInput)}
+                onInputChange={() => setTestError('')}
+                prefilledInput={prefilledInput}
+                inputRef={setupInputRef}
               />
             </div>
           )}
@@ -471,6 +496,7 @@ export default function PromptRunner() {
                 turnCount={turnCount}
                 maxTurns={hasAnyApiKey ? 0 : MAX_TURNS}
                 onSend={() => handleSendMessage(testInput)}
+                onInputChange={() => setTestError('')}
                 onRestart={handleResetChat}
               />
 
@@ -669,7 +695,10 @@ function RunnerSetupPanel({
   testInput,
   setTestInput,
   isRunning,
-  onRun
+  onRun,
+  onInputChange,
+  prefilledInput,
+  inputRef
 }: {
   promptContent: string;
   prompt: Prompt;
@@ -683,14 +712,18 @@ function RunnerSetupPanel({
   setTestInput: (input: string) => void;
   isRunning: boolean;
   onRun: () => void;
+  onInputChange: () => void;
+  prefilledInput: string;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const [isTemplateCollapsed, setIsTemplateCollapsed] = useState(true);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const usagePlan = getPromptUsagePlan(prompt);
 
   return (
     <div className="flex flex-col gap-6 w-full">
       <PromptUsageNotice prompt={prompt} />
-      {prompt.sampleInput && <button type="button" className="btn-secondary self-start" onClick={() => setTestInput(prompt.sampleInput || "")} disabled={isRunning}>使用示例输入</button>}
+      {prompt.sampleInput && <button type="button" className="btn-secondary self-start" onClick={() => { setTestInput(prompt.sampleInput || ""); onInputChange(); }} disabled={isRunning}>使用示例输入</button>}
       {/* 1. Prompt Preview Section */}
       <section className="sandbox-preview-section">
         <div className="sandbox-preview-header">
@@ -729,6 +762,11 @@ function RunnerSetupPanel({
             支持继续追问
           </span>
         </div>
+
+        <p className="sandbox-input-guidance">
+          {usagePlan.hasVariables && <><strong>请先替换变量：</strong>{usagePlan.variables.slice(0, 6).join('、')}。 </>}
+          {usagePlan.needsText ? <><strong>再补充需要处理的文本。</strong></> : <><strong>请填写本次输入内容。</strong></>}
+        </p>
 
         {/* Integrated shared keys warning Notice */}
         {!hasAnyApiKey && (
@@ -787,14 +825,15 @@ function RunnerSetupPanel({
         )}
 
         {/* Console-input wrapper */}
-        <div className={`console-input-wrapper ${isInputFocused ? 'focused' : ''}`}>
+        <div className={`console-input-wrapper ${isInputFocused ? 'focused' : ''} ${!testInput.trim() ? 'needs-input' : ''}`}>
           <textarea
             id="test-input"
+            ref={inputRef}
             className="console-textarea"
             aria-label={prompt.inputHint || "试用输入"}
             placeholder={prompt.inputHint || "输入内容，或点击上方使用示例输入"}
             value={testInput}
-            onChange={(e) => setTestInput(e.target.value)}
+            onChange={(e) => { setTestInput(e.target.value); onInputChange(); }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -805,17 +844,32 @@ function RunnerSetupPanel({
             onBlur={() => setIsInputFocused(false)}
             disabled={isRunning}
           />
+          {prefilledInput && testInput === prefilledInput && (
+            <div className="sandbox-prefill-notice" role="status">
+              <RiIcon icon="ri:magic-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
+              <span>已带入详情页填写好的成品指令，可直接运行。</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setTestInput('');
+                  onInputChange();
+                }}
+              >
+                清空
+              </button>
+            </div>
+          )}
           
           <div className="console-action-bar">
             <span className="console-hint">
               {promptContent.includes('{{input}}')
-                ? '{{input}} in prompt template will be replaced on initial turn.'
-                : 'Enter 发送，Shift+Enter 换行。请先输入内容或使用示例。'}
+                ? '{{input}} 会在首轮替换为下方输入；请输入正文后再运行。'
+                : 'Enter 运行，Shift+Enter 换行。先填写正文或使用示例输入。'}
             </span>
             <button
               className="btn-primary console-execute-btn"
               onClick={onRun}
-              disabled={isRunning || !testInput.trim()}
+              disabled={isRunning}
             >
               {isRunning ? (
                 <>
@@ -823,12 +877,12 @@ function RunnerSetupPanel({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Starting...</span>
+                  <span>正在运行…</span>
                 </>
               ) : (
                 <>
                   <RiIcon icon="ri:play-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ marginRight: '6px' }} /> 
-                  <span>开始试用</span>
+                  <span>运行试用</span>
                 </>
               )}
             </button>
@@ -1062,6 +1116,7 @@ function ContinuousChatInput({
   turnCount,
   maxTurns,
   onSend,
+  onInputChange,
   onRestart
 }: {
   testInput: string;
@@ -1071,6 +1126,7 @@ function ContinuousChatInput({
   turnCount: number;
   maxTurns: number;
   onSend: () => void;
+  onInputChange: () => void;
   onRestart: () => void;
 }) {
   const [isFocused, setIsFocused] = useState(false);
@@ -1098,7 +1154,7 @@ function ContinuousChatInput({
         className="deck-textarea"
         placeholder={`第 ${turnCount + 1} 轮：输入追问或新的文本片段…`}
         value={testInput}
-        onChange={(e) => setTestInput(e.target.value)}
+        onChange={(e) => { setTestInput(e.target.value); onInputChange(); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
@@ -1119,7 +1175,7 @@ function ContinuousChatInput({
         <button
           className="deck-send-btn"
           onClick={onSend}
-          disabled={isRunning || !testInput.trim()}
+          disabled={isRunning}
         >
           {isRunning ? (
             <>
