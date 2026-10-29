@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -19,7 +19,7 @@
   
   --text: #f8fafc;                       /* 纯白主字 */
   --text-muted: #94a3b8;                 /* 钛灰次级字 */
-  --text-faint: #475569;                 /* 虚化辅助字 */
+  --text-faint: #8492a6;                 /* 辅助字 */
   
   --primary: #00e5ff;                    /* 极光青，品牌主强调色 */
   --primary-hover: #00b8d4;
@@ -59,8 +59,8 @@
   --color-translation-glow: rgba(255, 42, 133, 0.15);
 
   /* Fonts */
-  --font-display: 'Outfit', 'Inter', -apple-system, sans-serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Radius (Terminal Style - Small & Clean) */
@@ -125,7 +125,11 @@ a {
 
 a:hover {
   color: #80f0ff;
-  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
 }
 
 button {
@@ -143,16 +147,11 @@ input, textarea, select {
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-base:hover {
   border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 255, 255, 0.02);
 }
 
 /* Premium Buttons */
@@ -274,6 +273,12 @@ input, textarea, select {
   overflow: hidden;
   clip: rect(0, 900px, 0, 0); 
   animation: noise 3s infinite linear alternate-reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-slide-up, .glitch-text::after {
+    animation: none;
+  }
 }
 
 @keyframes noise {

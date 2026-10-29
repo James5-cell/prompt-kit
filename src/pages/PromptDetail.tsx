@@ -105,7 +105,7 @@ export default function PromptDetail() {
 
   // ── Loading state ──────────────────────────────────────────
   if (isLoading) {
-    return <div className="detail-loading">Loading...</div>;
+    return <div className="detail-loading" role="status">正在读取指令…</div>;
   }
 
   // ── Not found or not published ─────────────────────────────
@@ -525,13 +525,13 @@ export default function PromptDetail() {
             {prompt.updatedAt && (
               <span className="detail-meta-item">
                 <span className="meta-icon"><RiIcon icon="ri:calendar-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span>
-                Updated {new Date(prompt.updatedAt).toLocaleDateString()}
+                更新于 {new Date(prompt.updatedAt).toLocaleDateString()}
               </span>
             )}
             {prompt.usageCount !== undefined && prompt.usageCount > 0 && (
               <span className="detail-meta-item">
                 <span className="meta-icon"><RiIcon icon="ri:bar-chart-box-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span>
-                Used {prompt.usageCount} times
+                使用 {prompt.usageCount} 次
               </span>
             )}
           </div>
@@ -540,7 +540,7 @@ export default function PromptDetail() {
         {/* ── Prompt Content ───────────────────────────────── */}
         <div className="detail-section">
           <div className="detail-section-header">
-            <h2 className="detail-section-title">Prompt</h2>
+            <h2 className="detail-section-title">指令正文</h2>
           </div>
           <div className={`detail-content-block ${isLongPrompt && !isLongPromptExpanded ? 'is-collapsed' : ''}`}>
             <pre className="detail-content-text">{filledContent}</pre>
@@ -567,12 +567,12 @@ export default function PromptDetail() {
         {/* ── Sample Output ────────────────────────────────── */}
         <div className="detail-section">
           <div className="detail-section-header">
-            <h2 className="detail-section-title">Sample Output</h2>
+            <h2 className="detail-section-title">示例输出</h2>
           </div>
           {prompt.sampleOutput ? (
             <div className="detail-sample-output">
               <div className="detail-sample-label">
-                <span><RiIcon icon="ri:sparkling-2-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} /></span> Example AI Response
+                以下是一次示例回复
               </div>
               <div className="detail-sample-text">
                 <ReactMarkdown>{prompt.sampleOutput}</ReactMarkdown>
@@ -584,7 +584,7 @@ export default function PromptDetail() {
                 <RiIcon icon="ri:lightbulb-line" width={ICON_SIZE.xxl} height={ICON_SIZE.xxl} />
               </div>
               <p className="detail-sample-placeholder-text">
-                No sample output yet. Copy the prompt above and try it with your preferred AI assistant.
+                暂无示例输出。可以复制上方指令，到你常用的 AI 助手中试用。
               </p>
             </div>
           )}
@@ -593,8 +593,8 @@ export default function PromptDetail() {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        title="Sign in to continue"
-        description="Please sign in to edit or test prompts."
+        title="登录后开始试用"
+        description="登录后即可试用这条指令。"
       />
       {canTryPrompt(prompt) && (
         <div className="detail-sticky-actions" aria-label="指令快捷操作">

@@ -656,7 +656,7 @@ export default function PromptList() {
                       aria-label={copiedId === prompt.id ? '已复制指令内容' : '复制指令内容'}
                     >
                       {copiedId === prompt.id
-                        ? <Check size={15} className="text-success animate-bounce" aria-hidden="true" />
+                        ? <Check size={15} className="text-success" aria-hidden="true" />
                         : <CopyIcon size={15} aria-hidden="true" />}
                     </button>
                     {isAdmin && (

@@ -28,7 +28,7 @@
 .settings-header > div > p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -39,7 +39,7 @@
   flex-shrink: 0;
   margin: 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -131,7 +131,7 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.02);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -210,7 +210,7 @@
 
 .provider-field > label {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -300,7 +300,7 @@
 .provider-key-link {
   margin: 11px 0 0;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 

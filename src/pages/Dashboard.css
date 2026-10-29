@@ -360,17 +360,16 @@
   justify-content: space-between;
   gap: 18px;
   padding: 20px;
-  border: 1px dashed rgba(34, 211, 238, 0.32);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(255, 255, 255, 0.02));
+  background: var(--surface);
   color: var(--text);
   text-decoration: none;
 }
 
 .dashboard-library-card:hover {
-  border-style: solid;
-  border-color: rgba(34, 211, 238, 0.65);
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.13), rgba(255, 255, 255, 0.03));
+  border-color: rgba(34, 211, 238, 0.5);
+  background: var(--surface-hover);
 }
 
 .dashboard-library-card:focus-visible {

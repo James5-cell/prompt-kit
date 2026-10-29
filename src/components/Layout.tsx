@@ -41,7 +41,7 @@ export default function Layout({ children }: LayoutProps) {
             <span className="brand-name">Prompt Kit</span>
           </Link>
 
-          <nav className="primary-nav" aria-label="主导航">
+          <nav className={`primary-nav${isAdmin ? ' has-admin' : ''}`} aria-label="主导航">
             {NAV_ITEMS.map((item) => {
               const isActive = isItemActive(item.path);
               return (

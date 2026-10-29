@@ -63,7 +63,7 @@ export default function PromptCard({ prompt, isAdmin = false, returnTo, category
           <Star size={18} className={prompt.favorite ? 'text-amber-300' : 'text-zinc-400'} fill={prompt.favorite ? 'currentColor' : 'none'} />
         </button>}
       </div>
-      <h2 className="prompt-summary-title"><Link to={detailUrl} state={linkState}>{prompt.title}</Link></h2>
+      <h3 className="prompt-summary-title"><Link to={detailUrl} state={linkState}>{prompt.title}</Link></h3>
       <p className="prompt-summary-text">{summary}</p>
       <div className="prompt-summary-tags">
         {visibleTags.map(tag => <span key={tag}>{tag}</span>)}

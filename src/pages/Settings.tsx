@@ -87,6 +87,7 @@ export default function Settings() {
     deepseek: null,
   });
   const [expandedProvider, setExpandedProvider] = useState<AIProvider | null>('gemini');
+  const [savedKeys, setSavedKeys] = useState<Partial<Record<AIProvider, boolean>>>({});
 
   useEffect(() => {
     loadSettings();
@@ -106,7 +107,11 @@ export default function Settings() {
 
       for (const { key, setter } of keySetters) {
         const val = await db.getSetting(key);
-        if (val) setter(val);
+        if (val) {
+          setter(val);
+          const provider = key.replace('ApiKey', '') as AIProvider;
+          setSavedKeys(prev => ({ ...prev, [provider]: true }));
+        }
       }
 
       const savedDefaultProvider = await db.getSetting('defaultAIProvider');
@@ -161,6 +166,7 @@ export default function Settings() {
 
       // Save API key
       await aiService.setProviderApiKey(provider, apiKey.trim());
+      setSavedKeys(prev => ({ ...prev, [provider]: true }));
       
       // Update local state
       switch (provider) {
@@ -230,6 +236,7 @@ export default function Settings() {
     try {
       // Delete from service (removes from storage and providers map)
       await aiService.deleteProviderApiKey(provider);
+      setSavedKeys(prev => ({ ...prev, [provider]: false }));
 
       // Clear local state
       switch (provider) {
@@ -322,9 +329,9 @@ export default function Settings() {
 
   function getSaveBtn(provider: AIProvider) {
     const state = buttonStates[provider];
-    if (state === 'loading') return { label: '⏳ 测试中…', disabled: true, style: {} };
-    if (state === 'success') return { label: '✓ 已保存', disabled: true, style: { background: 'var(--success)', color: 'var(--bg)' } };
-    if (state === 'error')   return { label: '✗ 密钥无效',  disabled: true, style: { background: 'var(--danger)', color: 'var(--text)' } };
+    if (state === 'loading') return { label: '测试中…', disabled: true, style: {} };
+    if (state === 'success') return { label: '已保存', disabled: true, style: { background: 'var(--success)', color: 'var(--bg)' } };
+    if (state === 'error')   return { label: '连接失败',  disabled: true, style: { background: 'var(--danger)', color: 'var(--text)' } };
     return { label: '保存并测试', disabled: false, style: {} };
   }
 
@@ -368,7 +375,7 @@ export default function Settings() {
       <header className="settings-header">
         <div>
           <h1>模型设置</h1>
-          <p>选择服务商和模型，API Key 只保存在当前浏览器。</p>
+          <p>选择服务商和模型，并配置试用所需的 API Key。</p>
         </div>
         <p className="settings-privacy-note">
           <RiIcon icon="ri:lock-2-line" width={14} height={14} aria-hidden="true" />
@@ -379,7 +386,7 @@ export default function Settings() {
       <div className="providers-list">
         {PROVIDERS.map(provider => {
           const apiKey = apiKeyByProvider[provider.id];
-          const isConfigured = Boolean(apiKey.trim());
+          const isConfigured = Boolean(savedKeys[provider.id]);
           const isExpanded = expandedProvider === provider.id;
           const isDefault = defaultProvider === provider.id;
           const hint = getProviderHint(provider.id);
@@ -464,7 +471,10 @@ export default function Settings() {
                           id={`${provider.id}-api-key`}
                           type="password"
                           value={apiKey}
-                          onChange={(event) => apiKeySetterByProvider[provider.id](event.target.value)}
+                          onChange={(event) => {
+                            apiKeySetterByProvider[provider.id](event.target.value);
+                            setTestResults(prev => ({ ...prev, [provider.id]: null }));
+                          }}
                           placeholder={provider.placeholder}
                           autoComplete="off"
                           className="settings-input"
@@ -503,10 +513,10 @@ export default function Settings() {
                   </p>
 
                   {testResults[provider.id] === 'success' && (
-                    <div className="test-success" role="status">✅ 连接成功</div>
+                    <div className="test-success" role="status">连接成功，密钥已保存。</div>
                   )}
                   {testResults[provider.id] === 'error' && (
-                    <div className="test-error" role="alert">❌ 连接失败</div>
+                    <div className="test-error" role="alert">连接失败，请检查密钥和网络后重试。</div>
                   )}
                 </div>
               )}

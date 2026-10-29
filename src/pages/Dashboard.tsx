@@ -96,15 +96,15 @@ export default function Dashboard() {
     });
   }, [prompts, selectedCategory]);
 
-  // 首页搜索始终检索全库，不受当前分类浏览范围影响。
+  // 搜索与分类共同作用，与指令库筛选行为保持一致。
   const searchMatches = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    return prompts
+    return categoryPrompts
       .filter((p) => promptSearchScore(p, searchQuery) > 0)
       .sort((a, b) => promptSearchScore(b, searchQuery) - promptSearchScore(a, searchQuery));
-  }, [prompts, searchQuery]);
+  }, [categoryPrompts, searchQuery]);
 
-  // 搜索展示全库匹配项预览；无搜索时仅包含管理员加星项
+  // 搜索展示当前范围的匹配预览；无搜索时仅包含管理员加星项
   const featuredPrompts = useMemo(() => {
     return searchQuery.trim()
       ? searchMatches.slice(0, SEARCH_PREVIEW_LIMIT)
@@ -115,10 +115,14 @@ export default function Dashboard() {
 
   const libraryMatchCount = searchMatches.length;
 
-  // 唯一结果入口：有关键词时检索全库，无关键词时承接当前分类。
+  // 进入指令库时保留关键词和分类。
   const resultsHref = useMemo(() => {
     const q = searchQuery.trim();
-    if (q) return `/prompts?q=${encodeURIComponent(q)}`;
+    if (q) {
+      const params = new URLSearchParams({ q });
+      if (selectedCategory !== 'all') params.set('category', selectedCategory);
+      return `/prompts?${params.toString()}`;
+    }
     return selectedCategory === 'all' ? '/prompts' : `/prompts?category=${selectedCategory}`;
   }, [searchQuery, selectedCategory]);
 
@@ -141,8 +145,8 @@ export default function Dashboard() {
     }
     const query = searchQuery.trim();
     return {
-      title: `指令库中没有匹配「${query}」的指令`,
-      desc: '试试更短或更通用的关键词，也可以只输入一个词。',
+      title: `没有找到匹配「${query}」的指令`,
+      desc: selectedCategory === 'all' ? '试试更短或更通用的关键词。' : '试试其他关键词，或选择「全部」扩大搜索范围。',
       actionLabel: '清空搜索',
       href: null,
       showLibraryLink: true,
@@ -156,7 +160,6 @@ export default function Dashboard() {
 
   const handleSelectCategory = (categoryId: string) => {
     setSelectedCategory(categoryId);
-    if (searchQuery.trim()) setSearchQuery('');
   };
 
   // 一键复制 Prompt 全文

@@ -94,7 +94,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1;
   text-decoration: none;
@@ -288,7 +288,11 @@
     min-width: 0;
     min-height: 32px;
     padding: 0 5px;
-    font-size: 11px;
+    font-size: 12px;
+  }
+
+  .primary-nav.has-admin {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .main-content {
@@ -310,7 +314,7 @@
   }
 
   .top-nav-item {
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
   .login-button {

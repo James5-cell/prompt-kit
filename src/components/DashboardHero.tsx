@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, CornerDownLeft, Sparkles } from 'lucide-react';
+import { Search, CornerDownLeft } from 'lucide-react';
 import { Icon as RiIcon } from '@iconify/react';
 
 export interface CategoryOption {
@@ -42,12 +42,6 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
 }) => {
   return (
     <section className="relative mx-auto mb-10 flex max-w-4xl flex-col items-center text-center">
-      {/* ── 1. 极简工件 Eyebrow 规范标签 ── */}
-      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3.5 py-1 font-mono text-[11px] text-zinc-400">
-        <Sparkles size={11} className="text-zinc-400" />
-        <span>PROMPT KIT · 实用指令收藏</span>
-      </div>
-
       {/* ── 2. 主标题：清晰有力，克制排版 ── */}
       <h1 className="mb-3 text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
         找到实用指令，立即体验效果
@@ -95,7 +89,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
         {isSearching && matchCount > 0 && (
           <div className="mt-2.5 flex flex-col gap-1.5 rounded border border-zinc-800/60 bg-zinc-900/40 px-3 py-2 text-left text-xs text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
             <span className="min-w-0 break-words">
-              全库匹配 <strong className="font-mono text-zinc-200">{matchCount}</strong> 条
+              匹配 <strong className="font-mono text-zinc-200">{matchCount}</strong> 条
               {shownCount < matchCount ? `，首页预览前 ${shownCount} 条` : '，已全部显示'}
             </span>
             <Link
@@ -111,7 +105,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
       {/* ── 5. 分类 Segmented Control (横向分段切换，取代散乱堆叠) ── */}
       <div className="mt-5 grid w-full grid-cols-2 items-center justify-center gap-1 sm:flex sm:flex-wrap rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-1">
         <span className="col-span-2 px-2 text-left text-xs text-zinc-400 sm:sr-only">
-          {isSearching ? '搜索覆盖全部指令；选择分类将结束搜索。' : '按分类浏览精选指令'}
+          按分类浏览指令
         </span>
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.id;

@@ -13,9 +13,11 @@ import './PromptEditor.css';
 export default function PromptEditor() {
   useNoIndex();
   const { id } = useParams<{ id: string }>();
+  const isNew = !id || id === 'new';
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState('');
@@ -75,11 +77,15 @@ export default function PromptEditor() {
   async function loadPrompt() {
     if (!id) return;
     setIsLoading(true);
-    const loaded = await promptService.getPrompt(id);
-    if (loaded) {
-      applyLoadedPrompt(loaded);
+    try {
+      const loaded = await promptService.getPrompt(id);
+      if (loaded) applyLoadedPrompt(loaded);
+      else setLoadError('找不到这条指令，可能已被删除。');
+    } catch {
+      setLoadError('无法读取这条指令，请返回指令库后重试。');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   function toggleTag(tagId: string) {
@@ -95,7 +101,7 @@ export default function PromptEditor() {
       setSelectedTagIds((prev) => [...prev, tag.id]);
       setNewTagName('');
     } catch (error: any) {
-      alert(`Failed to create tag: ${error.message}`);
+      setSaveError(`创建标签失败：${error.message}`);
     }
   }
 
@@ -123,7 +129,7 @@ export default function PromptEditor() {
 
   async function handleSave() {
     if (!isAdmin) {
-      alert('Permission denied: admin login required');
+      setSaveError('需要管理员权限才能保存指令。');
       return;
     }
     if (!title.trim()) {
@@ -157,46 +163,53 @@ export default function PromptEditor() {
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
       console.error('Save failed:', error);
-      alert(`Save failed: ${errorMessage}\n\nPlease check the browser console for more information.`);
+      setSaveError(`保存失败：${errorMessage}。请重试。`);
     } finally {
       setIsSaving(false);
     }
   }
 
   if (isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading" role="status">正在读取指令…</div>;
+  }
+
+  if (loadError) {
+    return <div className="prompt-editor"><p role="alert">{loadError}</p><button className="btn-secondary" onClick={() => navigate('/prompts')}>返回指令库</button></div>;
   }
 
   return (
     <div className="prompt-editor">
       <SEOHead
-        title={id === 'new' ? 'New Prompt — Prompt Editor' : 'Edit Prompt — Prompt Editor'}
-        description="專業 Prompt Engineering 編輯器，支援多變數模板、格式校驗與版本管理。"
-        canonical={id === 'new' ? 'https://www.205011.xyz/prompts/new' : `https://www.205011.xyz/prompts/${id}`}
+        title={isNew ? '新建指令 — Prompt Kit' : '编辑指令 — Prompt Kit'}
+        description="编辑指令内容、使用条件和示例。"
+        canonical={isNew ? 'https://www.205011.xyz/prompts/new' : `https://www.205011.xyz/prompts/${id}`}
       />
       {saveError && <p role="alert" className="rounded-lg border border-red-700 p-3 text-red-300">{saveError}</p>}
       <div className="editor-header">
-        <h1>{id === 'new' ? 'New Prompt' : 'Edit Prompt'}</h1>
+        <h1>{isNew ? '新建指令' : '编辑指令'}</h1>
         <div className="header-actions">
           {isAdmin && (
             <div className="editor-status-toggle">
               <button 
                 className={`status-toggle-btn ${status === 'draft' ? 'active' : ''}`}
+                aria-pressed={status === 'draft'}
                 onClick={() => setStatus('draft')}
               >
-                Draft
+                草稿
               </button>
               <button 
                 className={`status-toggle-btn ${status === 'published' ? 'active' : ''}`}
+                aria-pressed={status === 'published'}
                 onClick={() => setStatus('published')}
               >
-                Published
+                已发布
               </button>
               <button 
                 className={`status-toggle-btn ${status === 'private' ? 'active' : ''}`}
+                aria-pressed={status === 'private'}
                 onClick={() => setStatus('private')}
               >
-                Private
+                私有
               </button>
             </div>
           )}
@@ -205,14 +218,14 @@ export default function PromptEditor() {
             className="btn-secondary"
             onClick={() => navigate('/prompts')}
           >
-            Cancel
+            取消
           </button>
           <button
             className="btn-primary editor-save-btn"
             onClick={handleSave}
             disabled={isSaving || !isAdmin}
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? '保存中…' : '保存'}
           </button>
         </div>
       </div>
@@ -227,30 +240,30 @@ export default function PromptEditor() {
           color: 'var(--danger)', 
           fontSize: '12px' 
         }}>
-          🔒 Read-Only Vault: Administrator credentials required to create or modify prompt assets.
+          当前为只读模式，登录管理员账号后可创建或修改指令。
         </div>
       )}
 
       <div className="editor-content">
         <div className="editor-section">
           <div className="form-group">
-            <label htmlFor="prompt-title">Title *</label>
+            <label htmlFor="prompt-title">指令名称 *</label>
             <input
               id="prompt-title"
               name="title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Prompt title"
+              placeholder="输入指令名称"
               className="title-input input-base"
               required
               disabled={!isAdmin}
             />
-            <p className="field-hint">A clear name for identifying this asset in the workspace.</p>
+            <p className="field-hint">用简短的名称说明这条指令的用途。</p>
           </div>
           
           <div className="form-group">
-            <label htmlFor="prompt-content">Content</label>
+            <label htmlFor="prompt-content">完整指令 *</label>
             <textarea
               id="prompt-content"
               name="content"
@@ -260,20 +273,20 @@ export default function PromptEditor() {
                 e.target.style.height = 'auto';
                 e.target.style.height = `${e.target.scrollHeight}px`;
               }}
-              placeholder="Enter prompt content..."
+              placeholder="输入完整的指令内容"
               className="content-textarea auto-grow input-base"
               rows={10}
               disabled={!isAdmin}
             />
-            <p className="field-hint">The actual system/user instructions. Use <code>{"{{input}}"}</code> as a parameter placeholder if needed.</p>
+            <p className="field-hint">需要用户填写的内容可以用 <code>{"{{input}}"}</code> 作为占位符。</p>
           </div>
 
           {/* ── Tags / Metadata Tokens ─────────────────────────── */}
           <div className="form-group tag-metadata-editor">
-            <label>Tags & Metadata Tokens</label>
+            <label>标签</label>
             <div className="tag-input-container">
               {selectedTagIds.length === 0 ? (
-                <span className="no-tags-placeholder">No tags assigned. Select from available tags below.</span>
+                <span className="no-tags-placeholder">尚未选择标签。</span>
               ) : (
                 <div className="active-tags-list">
                   {selectedTagIds.map((tid) => {
@@ -287,7 +300,7 @@ export default function PromptEditor() {
                           className="remove-tag-btn"
                           onClick={() => toggleTag(tag.id)}
                           disabled={!isAdmin}
-                          title="Remove Tag"
+                          aria-label={`移除标签 ${tag.name}`}
                         >
                           ×
                         </button>
@@ -300,7 +313,7 @@ export default function PromptEditor() {
             
             {isAdmin && (
               <div className="available-tags-section">
-                <span className="available-tags-label">Available tags:</span>
+                <span className="available-tags-label">可选标签</span>
                 <div className="available-tags-list">
                   {allTags
                     .filter((tag) => !selectedTagIds.includes(tag.id))
@@ -321,7 +334,8 @@ export default function PromptEditor() {
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
-                      placeholder="+ new tag"
+                      placeholder="输入新标签后按回车"
+                      aria-label="创建新标签，输入后按回车"
                       className="tag-create-input"
                     />
                   </span>
@@ -333,36 +347,36 @@ export default function PromptEditor() {
           {/* ── Category & Language ───────────────────────────── */}
           <div className="form-row">
             <div className="form-group form-group-half">
-              <label htmlFor="prompt-category">Category</label>
+              <label htmlFor="prompt-category">分类</label>
               <input
                 id="prompt-category"
                 type="text"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Writing, Coding, Marketing"
+                placeholder="例如：写作、研发"
                 disabled={!isAdmin}
                 className="input-base"
               />
-              <p className="field-hint">Classification category for asset lookup.</p>
+              <p className="field-hint">用于分类查找指令。</p>
             </div>
             <div className="form-group form-group-half">
-              <label htmlFor="prompt-language">Language</label>
+              <label htmlFor="prompt-language">语言</label>
               <input
                 id="prompt-language"
                 type="text"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                placeholder="e.g. English, 中文"
+                placeholder="例如：中文、English"
                 disabled={!isAdmin}
                 className="input-base"
               />
-              <p className="field-hint">Target linguistic context of the output.</p>
+              <p className="field-hint">指令输出使用的语言。</p>
             </div>
           </div>
 
           {/* ── Summary ──────────────────────────────────────── */}
           <div className="form-group">
-            <label htmlFor="prompt-summary">Summary</label>
+            <label htmlFor="prompt-summary">简介</label>
             <textarea
               id="prompt-summary"
               value={summary}
@@ -371,12 +385,12 @@ export default function PromptEditor() {
                 e.target.style.height = 'auto';
                 e.target.style.height = `${e.target.scrollHeight}px`;
               }}
-              placeholder="Short description of what this prompt does"
+              placeholder="简要说明这条指令能做什么"
               className="auto-grow input-base"
               rows={2}
               disabled={!isAdmin}
             />
-            <p className="field-hint">Brief executive summary displayed on cards in the prompt list.</p>
+            <p className="field-hint">显示在指令库的卡片上。</p>
           </div>
 
           <div className="form-group">
@@ -393,7 +407,7 @@ export default function PromptEditor() {
 
           {/* ── Sample Output ──────────────────────────────────── */}
           <div className="form-group">
-            <label htmlFor="prompt-sample-output">Sample Output</label>
+            <label htmlFor="prompt-sample-output">示例输出</label>
             <textarea
               id="prompt-sample-output"
               value={sampleOutput}
@@ -402,13 +416,13 @@ export default function PromptEditor() {
                 e.target.style.height = 'auto';
                 e.target.style.height = `${e.target.scrollHeight}px`;
               }}
-              placeholder="Paste an example AI output to show visitors what this prompt produces"
+              placeholder="粘贴一段示例输出"
               className="auto-grow input-base"
               rows={4}
               disabled={!isAdmin}
             />
             <p className="field-hint">
-              This will be displayed on the public prompt page as a preview of what this prompt can do.
+              显示在公开详情页，帮助读者了解可能的结果。
             </p>
           </div>
 
@@ -416,6 +430,7 @@ export default function PromptEditor() {
             <button
               type="button"
               className={`favorite-toggle-btn ${favorite ? 'active' : ''}`}
+              aria-pressed={favorite}
               onClick={() => setFavorite(!favorite)}
               disabled={!isAdmin}
             >

@@ -21,7 +21,13 @@
   letter-spacing: -0.015em;
 }
 
-.header-actions {
+.editor-save-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.prompt-editor .header-actions {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -59,7 +65,7 @@
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -86,7 +92,8 @@
 .form-group input[type="number"]:focus,
 .form-group textarea:focus,
 .form-group select:focus {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.15);
 }
 
 .form-group textarea {
@@ -219,7 +226,7 @@
 }
 
 .tag-create-input {
-  width: 90px;
+  width: 180px !important;
   padding: 4px 10px !important;
   border: 1px dashed var(--border-strong) !important;
   border-radius: 4px !important;
@@ -236,7 +243,7 @@
 
 .tag-create-input:focus {
   border-color: var(--primary) !important;
-  width: 120px;
+  width: 200px !important;
   color: var(--text) !important;
 }
 
@@ -324,7 +331,7 @@
 }
 
 .field-hint {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-faint);
   margin-top: 6px;
   margin-bottom: 0;
@@ -335,7 +342,7 @@
 @media (max-width: 768px) {
   .prompt-editor {
     padding: 16px;
-    padding-bottom: 80px;
+    padding-bottom: 40px;
   }
 
   .editor-header {
@@ -349,17 +356,8 @@
     font-size: 18px;
   }
 
-  .header-actions {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: auto;
-    padding: 15px;
-    margin: 0;
-    background-color: var(--surface);
-    border-top: 1px solid var(--border);
-    z-index: 100;
+  .prompt-editor .header-actions {
+    width: 100%;
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -378,12 +376,12 @@
     text-align: center;
   }
 
-  .header-actions button.btn-secondary,
-  .header-actions button.btn-primary {
+  .prompt-editor .header-actions button.btn-secondary,
+  .prompt-editor .header-actions button.btn-primary {
     flex: 1;
     min-width: 100px;
     max-width: none;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .editor-section {
