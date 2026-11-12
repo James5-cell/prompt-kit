@@ -11,7 +11,7 @@ interface LayoutProps {
 }
 
 const NAV_ITEMS = [
-  { path: '/dashboard', label: '首页' },
+  { path: '/', label: '首页' },
   { path: '/prompts', label: '指令库' },
   { path: '/settings', label: '模型设置' },
   { path: '/about', label: '关于' },
@@ -22,14 +22,15 @@ export default function Layout({ children }: LayoutProps) {
   const { isAuthReady, userEmail, isAdmin, loginWithGoogle, logout } = useAuth();
 
   const isItemActive = (path: string) =>
-    location.pathname === path ||
-    (path !== '/dashboard' && location.pathname.startsWith(`${path}/`));
+    path === '/'
+      ? location.pathname === '/' || location.pathname === '/dashboard'
+      : location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <div className="layout">
       <header className="top-navbar">
         <div className="top-navbar-inner">
-          <Link to="/dashboard" className="brand-link" aria-label="Prompt Kit 首页">
+          <Link to="/" className="brand-link" aria-label="Prompt Kit 首页">
             <img
               className="brand-mark"
               src="/favicon.svg"
@@ -115,6 +116,16 @@ export default function Layout({ children }: LayoutProps) {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <footer className="border-t border-zinc-800/70 px-4 py-6 text-center text-xs text-zinc-400">
+        <nav aria-label="页脚导航" className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <Link to="/prompts" className="hover:text-zinc-200">全部指令</Link>
+          <Link to="/about" className="hover:text-zinc-200">关于与收录标准</Link>
+          <a href="/llms.txt" className="hover:text-zinc-200">llms.txt</a>
+          <a href="/llms-full.txt" className="hover:text-zinc-200">llms-full.txt</a>
+          <a href="/sitemap.xml" className="hover:text-zinc-200">Sitemap</a>
+        </nav>
+      </footer>
     </div>
   );
 }

@@ -16,12 +16,19 @@ const STORES = {
 
 class Database {
   private db: IDBDatabase | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    if (this.db) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        this.initPromise = null;
+        reject(request.error);
+      };
       request.onsuccess = () => {
         this.db = request.result;
         resolve();
@@ -66,6 +73,8 @@ class Database {
         }
       };
     });
+
+    return this.initPromise;
   }
 
   private getStore(storeName: string, mode: IDBTransactionMode = 'readonly'): IDBObjectStore {
@@ -239,6 +248,7 @@ class Database {
 
   // Settings
   async getSetting(key: string): Promise<any> {
+    await this.init();
     return new Promise((resolve, reject) => {
       const store = this.getStore(STORES.settings);
       const request = store.get(key);
@@ -248,6 +258,7 @@ class Database {
   }
 
   async saveSetting(key: string, value: any): Promise<void> {
+    await this.init();
     return new Promise((resolve, reject) => {
       const store = this.getStore(STORES.settings, 'readwrite');
       const request = store.put({ key, value });
@@ -257,6 +268,7 @@ class Database {
   }
 
   async deleteSetting(key: string): Promise<void> {
+    await this.init();
     return new Promise((resolve, reject) => {
       const store = this.getStore(STORES.settings, 'readwrite');
       const request = store.delete(key);

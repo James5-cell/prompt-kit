@@ -140,6 +140,7 @@ export default function PromptDetail() {
       <SEOHead
         title={prompt.title}
         description={prompt.summary || prompt.content.slice(0, 160)}
+        keywords={[prompt.title, categoryMeta.label, ...(prompt.tagNames ?? []), 'Prompt Kit', 'AI Prompt'].join(', ')}
         canonical={`https://www.205011.xyz/p/${prompt.id}`}
         ogType="article"
         ogImage="https://www.205011.xyz/og-image.png"
@@ -348,7 +349,8 @@ export default function PromptDetail() {
       </div>
 
       {/* ── Main content ───────────────────────────────────── */}
-      <div className="detail-container">
+      <main id="main-content" className="detail-container">
+        <article>
         {/* ── Header ─────────────────────────────────────── */}
         <div className="detail-header">
           <h1 className="detail-title">{prompt.title}</h1>
@@ -589,7 +591,8 @@ export default function PromptDetail() {
             </div>
           )}
         </div>
-      </div>
+        </article>
+      </main>
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}

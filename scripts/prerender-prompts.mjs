@@ -403,7 +403,7 @@ async function main() {
   const dashboardPageHtml = replaceHtmlMetadata(templateHtml, {
     title: 'Dashboard — 工作台｜Prompt Kit',
     description: 'Prompt Kit 總覽儀表板：提示詞資產統計、分類概況與快速工作流。',
-    canonicalUrl: `${CANONICAL_DOMAIN}/dashboard`,
+    canonicalUrl: `${CANONICAL_DOMAIN}/`,
     ogType: 'website',
     ogImage: GLOBAL_OG_IMAGE,
     noscriptHtml: dashboardNoscript,

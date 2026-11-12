@@ -4,15 +4,19 @@ import { useLocation } from 'react-router-dom';
 interface SEOHeadProps {
   title: string;
   description?: string;
+  keywords?: string;
   canonical?: string;
   ogType?: 'website' | 'article';
   ogImage?: string;
+  noindex?: boolean;
   jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
 }
 
 const DEFAULT_DOMAIN = 'https://www.205011.xyz';
 const DEFAULT_DESCRIPTION =
-  'Private Prompt Vault: 你的私密提示詞工作流與高價值資產庫';
+  'Prompt Kit 是一個專業的 AI Prompt 知識庫與工作流工具，整理、重用與優化 AI 提示詞，支援多模型即時執行與測試。';
+const DEFAULT_KEYWORDS =
+  'Prompt Kit, AI Prompts, 提示詞庫, Prompt Engineering, ChatGPT, Claude, Gemini, AI工作流, PostSoma';
 const DEFAULT_OG_IMAGE = `${DEFAULT_DOMAIN}/og-image.png`;
 
 function toAbsoluteUrl(url?: string): string {
@@ -25,9 +29,11 @@ function toAbsoluteUrl(url?: string): string {
 export default function SEOHead({
   title,
   description = DEFAULT_DESCRIPTION,
+  keywords = DEFAULT_KEYWORDS,
   canonical,
   ogType = 'website',
   ogImage = DEFAULT_OG_IMAGE,
+  noindex = false,
   jsonLd,
 }: SEOHeadProps) {
   const location = useLocation();
@@ -40,6 +46,8 @@ export default function SEOHead({
       {/* Basic Metadata */}
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
+      {keywords && <meta name="keywords" content={keywords} />}
+      <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
       <link rel="canonical" href={canonicalUrl} />
 
       {/* Open Graph */}

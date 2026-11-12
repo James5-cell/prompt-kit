@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { db } from './storage/db';
 import { initFirebase } from './storage/firebase';
 import { AuthProvider } from './auth/AuthContext';
@@ -17,8 +17,10 @@ const DevLibrary = lazy(() => import('./pages/DevLibrary'));
 const AIInsights = lazy(() => import('./pages/AIInsights'));
 const Admin = lazy(() => import('./pages/Admin'));
 const About = lazy(() => import('./pages/About'));
-import GoogleAnalytics from './components/GoogleAnalytics';
+import PostSomaAnalytics from './components/PostSomaAnalytics';
 import './App.css';
+
+initFirebase();
 
 /**
  * Conditionally wraps children in Layout sidebar.
@@ -35,34 +37,15 @@ function ConditionalLayout({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const [isInitialized, setIsInitialized] = useState(false);
-
   useEffect(() => {
-    // Initialize IndexedDB
-    db.init()
-      .then(() => {
-        // Initialize Firebase - using default configuration (defined in firebase.ts)
-        initFirebase();
-        setIsInitialized(true);
-      })
-      .catch((error) => {
-        console.error('Failed to initialize database:', error);
-        initFirebase();
-        setIsInitialized(true);
-      });
+    db.init().catch((error) => {
+      console.error('Failed to initialize database:', error);
+    });
   }, []);
-
-  if (!isInitialized) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Initializing...</div>
-      </div>
-    );
-  }
 
   return (
     <BrowserRouter>
-      <GoogleAnalytics />
+      <PostSomaAnalytics />
       <AuthProvider>
         <ConditionalLayout>
           <PageErrorBoundary>
@@ -72,7 +55,7 @@ function App() {
             <Route path="/p/:id" element={<PromptDetail />} />
 
             {/* ── Studio routes (with sidebar) ──────────────────── */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/prompts" element={<PromptList />} />
             <Route path="/prompts/new" element={<PromptEditor />} />

@@ -191,8 +191,49 @@ export default function Dashboard() {
       <SEOHead
         title="Prompt Kit — 个人深度实战打磨的高效 AI 提示词库"
         description="收集翻译、写作、学习、思考与研发指令，支持轻量文本试用，并标明所需资料和使用环境。"
-        canonical="https://www.205011.xyz/dashboard"
+        keywords="Prompt Kit, AI Prompts, 提示詞庫, Prompt Engineering, ChatGPT, Claude, Gemini, AI工作流, PostSoma"
+        canonical="https://www.205011.xyz/"
         ogType="website"
+        jsonLd={{
+          '@context': 'https://schema.org/',
+          '@graph': [
+            {
+              '@type': 'WebSite',
+              '@id': 'https://www.205011.xyz/#website',
+              'name': 'Prompt Kit',
+              'url': 'https://www.205011.xyz/',
+              'description': 'Prompt Kit 是一個用來整理、重用與優化 AI Prompts 的知識庫和工作流工具。',
+              'potentialAction': {
+                '@type': 'SearchAction',
+                'target': 'https://www.205011.xyz/prompts?q={search_term_string}',
+                'query-input': 'required name=search_term_string'
+              }
+            },
+            {
+              '@type': 'SoftwareApplication',
+              '@id': 'https://www.205011.xyz/#software',
+              'name': 'Prompt Kit',
+              'operatingSystem': 'Web',
+              'applicationCategory': 'UtilitiesApplication',
+              'url': 'https://www.205011.xyz/',
+              'description': '收集翻譯、寫作、學習、思考與研發指令，支援輕量文本試用與多模型執行工作台。',
+              'offers': {
+                '@type': 'Offer',
+                'price': '0',
+                'priceCurrency': 'USD'
+              }
+            },
+            {
+              '@type': 'WebPage',
+              '@id': 'https://www.205011.xyz/#webpage',
+              'url': 'https://www.205011.xyz/',
+              'name': 'Prompt Kit — 个人深度实战打磨的高效 AI 提示词库',
+              'description': '收集翻译、写作、学习、思考与研发指令，支持轻量文本试用，并标明所需资料和使用环境。',
+              'isPartOf': { '@id': 'https://www.205011.xyz/#website' },
+              'inLanguage': 'zh-Hant'
+            }
+          ]
+        }}
       />
 
       {/* ── 首屏 Hero：高信噪比极简工件命令舱 ────────────────────────── */}
