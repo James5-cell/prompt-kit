@@ -183,9 +183,10 @@ export default function PromptList() {
 
   // ── Actions ────────────────────────────────────────────────
   async function deletePrompt(id: string) {
-    if (!isAdmin) { alert('Permission denied: admin login required'); return; }
-    if (confirm('Are you sure you want to delete this prompt?')) {
-      await promptService.deletePrompt(id);
+    if (!isAdmin) { alert('需要管理员权限才能删除指令。'); return; }
+    if (confirm('确定要删除这条指令吗？')) {
+      try { await promptService.deletePrompt(id); }
+      catch { alert('删除失败，请检查网络后重试。'); }
     }
   }
 
@@ -194,7 +195,7 @@ export default function PromptList() {
       await navigator.clipboard.writeText(prompt.content);
       setCopiedId(prompt.id);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch { alert('Copy failed'); }
+    } catch { alert('复制失败，请打开详情后手动复制。'); }
   }
 
   async function toggleFavorite(prompt: Prompt) {
@@ -202,18 +203,18 @@ export default function PromptList() {
       await promptService.toggleFavorite(prompt.id);
     } catch (error) {
       console.error('[Favorite] Operation failed:', error);
-      alert(`Operation failed: ${error}`);
+      alert('操作失败，请检查网络后重试。');
     }
   }
 
   // ── Derived / computed values ──────────────────────────────
   const uniqueCategories = Array.from(
-    new Set(prompts.map(p => p.category).filter(Boolean))
+    new Set(prompts.filter(p => isAdmin || (!p.isDeleted && isPublishedStatus(p.status) && p.visibility !== 'private')).map(p => p.category).filter(Boolean))
   ) as string[];
 
   // Prompts eligible for tag aggregation (respects category + status filter)
   const promptsForTags = prompts.filter(p => {
-    if (!isAdmin && !isPublishedStatus(p.status)) return false;
+    if (!isAdmin && (p.isDeleted || !isPublishedStatus(p.status) || p.visibility === 'private')) return false;
     if (isAdmin && selectedAdminStatus !== 'all') {
       if (selectedAdminStatus === 'draft'     && p.status && p.status !== 'draft')   return false;
       if (selectedAdminStatus === 'published' && p.status !== 'published' && p.status !== 'active') return false;
@@ -435,7 +436,7 @@ export default function PromptList() {
                   type="button"
                   className={`filter-choice ${!selectedCategory ? 'active' : ''}`}
                   aria-pressed={!selectedCategory}
-                  onClick={() => updateFilters(null, [])}
+                  onClick={() => updateFilters(null, activeTagNames)}
                 >
                   <BookOpen size={13} /> 全部
                 </button>
@@ -448,7 +449,7 @@ export default function PromptList() {
                       type="button"
                       className={`filter-choice ${isActive ? 'active' : ''}`}
                       aria-pressed={isActive}
-                      onClick={() => updateFilters(cat, [])}
+                      onClick={() => updateFilters(cat, activeTagNames)}
                     >
                       <RiIcon icon={meta.icon} width={13} height={13} style={{ color: meta.color }} />
                       {meta.label}
@@ -464,7 +465,7 @@ export default function PromptList() {
             <div className="filter-tag-row">
               <div className="filter-title-row">
                 <span className="filter-toolbar-label">标签</span>
-                <button
+                {hiddenTagCount > 0 || showAllTags ? <button
                   type="button"
                   className="tag-show-more"
                   aria-expanded={showAllTags}
@@ -472,7 +473,7 @@ export default function PromptList() {
                 >
                   {showAllTags ? '收起标签' : `更多标签 (${Math.max(0, hiddenTagCount)})`}
                   <ChevronDown className={showAllTags ? 'is-open' : ''} size={13} />
-                </button>
+                </button> : null}
               </div>
               <div className={`tag-chips-inline ${showAllTags ? 'is-expanded' : ''}`}>
                 {visibleTagOptions.map(tag => {
@@ -482,6 +483,7 @@ export default function PromptList() {
                       key={tag.name}
                       type="button"
                       className={`tag-chip-option ${isSelected ? 'selected' : ''}`}
+                      aria-pressed={isSelected}
                       style={isSelected && tag.color
                         ? { borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}15` }
                         : undefined
@@ -548,6 +550,8 @@ export default function PromptList() {
         {isLoading ? null : filteredPrompts.length > 0 ? (
           filteredPrompts.map(prompt => {
             const categoryMeta = getPromptCategoryMeta(prompt.category);
+            const showEditor = isAdmin && (!isPublishedStatus(prompt.status) || prompt.visibility === 'private');
+            const detailsPath = showEditor ? `/prompts/${prompt.id}` : `/p/${prompt.id}`;
 
             return (
               <motion.div
@@ -579,7 +583,7 @@ export default function PromptList() {
                       <span className="prompt-usage-pill">{USAGE_LABELS[getUsageMode(prompt)]}</span>
                     </div>
                     <Link
-                      to={isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`}
+                      to={detailsPath}
                       state={returnTo ? { returnTo } : undefined}
                       className="prompt-title"
                     >
@@ -627,19 +631,19 @@ export default function PromptList() {
                   <button
                     className="btn-secondary action-btn-glow toggle-expand-btn"
                     onClick={() => navigate(
-                      isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`,
+                      detailsPath,
                       { state: returnTo ? { returnTo } : undefined },
                     )}
-                    aria-label="查看指令详情"
-                    title="查看指令详情"
+                    aria-label={showEditor ? '编辑指令' : '查看指令详情'}
+                    title={showEditor ? '编辑指令' : '查看指令详情'}
                   >
                     <Eye size={15} aria-hidden="true" />
-                    <span style={{ marginLeft: '4px' }}>查看详情</span>
+                    <span style={{ marginLeft: '4px' }}>{showEditor ? '编辑指令' : '查看详情'}</span>
                   </button>
 
                   <div className="prompt-actions-group">
-                    <Link
-                      to={canTryPrompt(prompt) ? `/prompts/${prompt.id}/run` : `/p/${prompt.id}`}
+                    {canTryPrompt(prompt) && <Link
+                      to={`/prompts/${prompt.id}/run`}
                       state={returnTo ? { returnTo } : undefined}
                       className="btn-primary btn-glow icon-action-btn"
                       onClick={e => {
@@ -649,7 +653,8 @@ export default function PromptList() {
                       aria-label={canTryPrompt(prompt) ? '在线试用此指令' : '查看此指令详情'}
                     >
                       <Zap size={15} aria-hidden="true" />
-                    </Link>
+                      <span>试用</span>
+                    </Link>}
                     <button
                       className={`btn-secondary icon-action-btn copy-action-btn ${copiedId === prompt.id ? 'copied' : ''}`}
                       onClick={() => copyPrompt(prompt)}
@@ -659,6 +664,7 @@ export default function PromptList() {
                       {copiedId === prompt.id
                         ? <Check size={15} className="text-success" aria-hidden="true" />
                         : <CopyIcon size={15} aria-hidden="true" />}
+                      <span>{copiedId === prompt.id ? '已复制' : '复制'}</span>
                     </button>
                     {isAdmin && (
                     <button
@@ -722,7 +728,7 @@ export default function PromptList() {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        onSuccess={() => { if (pendingTrialId) navigate(`/prompts/${pendingTrialId}/run`); }}
+        onSuccess={() => { if (pendingTrialId) navigate(`/prompts/${pendingTrialId}/run`, { state: { returnTo } }); }}
         title="登录后开始试用"
         description="使用免费模型测试短文本，登录后将继续打开当前指令。"
       />

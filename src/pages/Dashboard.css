@@ -827,4 +827,6 @@
 @media (max-width: 640px) {
   .dashboard { padding: 24px 16px 40px; }
   .dashboard-prompts-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-hero-title { font-size: clamp(22px, 6vw, 27px); text-wrap: balance; }
+  .dashboard-search-input { font-size: 16px; }
 }

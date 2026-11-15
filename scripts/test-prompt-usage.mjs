@@ -23,6 +23,11 @@ assert.ok(budget.trialBudgetError('instruction',[{role:'user',content:'ok'}, {ro
 assert.ok(budget.getTrialInputLimit('中'.repeat(3500)) < budget.getTrialInputLimit('short'));
 assert.equal(budget.getTrialInputLimit('中'.repeat(6000)),0);
 assert.ok(budget.buildTrialSystem('{{input}}','first text').startsWith('first text'));
+assert.equal(budget.fillTrialVariables('Translate [language]: {{input}}', { '[language]': '中文' }), 'Translate 中文: {{input}}');
+assert.equal(budget.fillTrialVariables('Translate [language]: {{input}}', { '{{input}}': 'unexpected' }), null);
+assert.equal(budget.fillTrialVariables('Translate [language]', { '[unknown]': 'value' }), null);
+assert.equal(budget.fillTrialVariables('Translate [language]', { '[language]': '{{input}}' }), null);
+assert.equal(budget.fillTrialVariables('Translate [language]', { '[language]': '中'.repeat(2001) }), null);
 assert.ok(budget.getTrialInputLimit('{{input}}'.repeat(4)) < budget.getTrialInputLimit('short'));
 const rows=JSON.parse(readFileSync(new URL('./data/prompt-usage-2026-10-03.json',import.meta.url),'utf8'));
 assert.equal(rows.length,46);

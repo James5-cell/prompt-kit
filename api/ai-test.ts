@@ -1,5 +1,5 @@
 import { streamText } from 'ai';
-import { buildTrialSystem, getTrialInputLimit, trialBudgetError, TRIAL_OUTPUT_TOKENS } from '../src/utils/trialBudget.js';
+import { buildTrialSystem, fillTrialVariables, getTrialInputLimit, trialBudgetError, TRIAL_OUTPUT_TOKENS } from '../src/utils/trialBudget.js';
 import { resolveAIModel } from './_lib/ai/providerFactory.js';
 import { FALLBACK_CONFIG } from '../src/config/aiModels.js';
 import { getPlatformConfig } from './_lib/db.js';
@@ -211,7 +211,7 @@ export default {
       console.warn('[ai-test] Failed to parse request body:', e);
     }
 
-    const { prompt, systemPrompt, promptId, messages, provider, model, apiKey } = requestBody || {};
+    const { prompt, systemPrompt, promptId, messages, provider, model, apiKey, templateVariables } = requestBody || {};
 
     try {
       const normalizedMessages = normalizeRequestMessages(messages, prompt);
@@ -244,7 +244,8 @@ export default {
         if (mode !== 'direct' && mode !== 'text') {
           return new Response(JSON.stringify({ error: fields?.usageNotes?.stringValue || '此指令需要外部环境，请复制到其他 Agent 使用。' }), { status: 422, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
         }
-        const content = fields?.content?.stringValue || '';
+        const content = fillTrialVariables(fields?.content?.stringValue || '', templateVariables);
+        if (content === null) return new Response(JSON.stringify({ error: '指令变量无效，请返回详情页检查。' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
         const firstInput = normalizedMessages.find(m => m.role === 'user')?.content || '';
         effectiveSystem = buildTrialSystem(content, firstInput);
         const budgetError = trialBudgetError(effectiveSystem, normalizedMessages, getTrialInputLimit(content));

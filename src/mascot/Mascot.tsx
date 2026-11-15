@@ -22,6 +22,7 @@ export default function PromptKitMascot() {
   const signalsRef = useRef<MascotSignal[]>([])
   const dockRef = useRef<HTMLElement>(null)
   const [renderPaused, setRenderPaused] = useState(false)
+  const [isScrolling, setIsScrolling] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -45,12 +46,16 @@ export default function PromptKitMascot() {
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] })
 
     let lastScrollPosition = window.scrollY
+    let scrollTimeout: number | undefined
     const onScroll = (event: Event) => {
       const target = event.target
       const next = target instanceof Element ? target.scrollTop : window.scrollY
       if (Math.abs(next - lastScrollPosition) >= mascotConfig.scheduler.scrollThresholdPx) {
         signalsRef.current.push({ type: "scroll" })
         lastScrollPosition = next
+        setIsScrolling(true)
+        window.clearTimeout(scrollTimeout)
+        scrollTimeout = window.setTimeout(() => setIsScrolling(false), 1200)
       }
     }
     let lastPointer = { x: 0, y: 0, at: 0 }
@@ -114,6 +119,7 @@ export default function PromptKitMascot() {
     signalsRef.current.push({ type: "busy", value: isEditing(document.activeElement) })
 
     return () => {
+      window.clearTimeout(scrollTimeout)
       if (interval !== undefined) window.clearInterval(interval)
       observer.disconnect()
       themeObserver.disconnect()
@@ -145,7 +151,7 @@ export default function PromptKitMascot() {
   } as CSSProperties
 
   return (
-    <aside ref={dockRef} data-render-paused={renderPaused || snapshot.mode === "guarded" || snapshot.mode === "shy_wait"} aria-label="Prompt Kit mascot" className="pk-mascot-dock" data-mode={snapshot.mode}
+    <aside ref={dockRef} data-scrolling={isScrolling} data-render-paused={renderPaused || snapshot.mode === "guarded" || snapshot.mode === "shy_wait"} aria-label="Prompt Kit mascot" className="pk-mascot-dock" data-mode={snapshot.mode}
       data-behavior={snapshot.behavior ?? "idle"} data-theme={theme} style={style}
       onTransitionEnd={(event) => {
         if (event.target === event.currentTarget && event.propertyName === "transform")

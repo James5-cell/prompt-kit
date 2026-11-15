@@ -7,7 +7,7 @@ import {
 import { getPromptCategoryMeta } from '../config/categoryMeta';
 import { resolveReturnTo } from '../utils/returnTo';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useParams, Link } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { Icon as RiIcon } from '@iconify/react';
 import { ICON_SIZE } from '../config/iconSizes';
 // All icons now use @iconify/react (RiIcon) — no Lucide imports needed
@@ -27,15 +27,19 @@ import './PromptDetail.css';
 export default function PromptDetail() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { userEmail, isAdmin } = useAuth();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLongPromptExpanded, setIsLongPromptExpanded] = useState(false);
   const [isVariableGuideExpanded, setIsVariableGuideExpanded] = useState(false);
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const moreButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -68,6 +72,7 @@ export default function PromptDetail() {
   async function loadPublishedPrompt(promptId: string) {
     setIsLoading(true);
     setNotFound(false);
+    setLoadError(false);
     try {
       const loaded = await promptService.getPublishedPrompt(promptId);
       if (loaded) {
@@ -77,7 +82,7 @@ export default function PromptDetail() {
       }
     } catch (error) {
       console.error('Failed to load prompt:', error);
-      setNotFound(true);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -85,6 +90,7 @@ export default function PromptDetail() {
 
   async function handleCopy() {
     if (!prompt) return;
+    setCopyError(false);
     const copyText = fillPromptVariables(prompt.content, variableValues);
     try {
       await navigator.clipboard.writeText(copyText);
@@ -96,16 +102,24 @@ export default function PromptDetail() {
       textarea.value = copyText;
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      let success = false;
+      try { success = document.execCommand('copy'); }
+      catch { success = false; }
+      finally { document.body.removeChild(textarea); }
+      if (success) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else setCopyError(true);
     }
   }
 
   // ── Loading state ──────────────────────────────────────────
   if (isLoading) {
     return <div className="detail-loading" role="status">正在读取指令…</div>;
+  }
+
+  if (loadError) {
+    return <div className="detail-not-found" role="alert"><h2>读取失败</h2><p>请检查网络连接，然后重试。</p><button className="detail-not-found-link" onClick={() => id && loadPublishedPrompt(id)}>重新读取</button><Link to={returnTo} className="detail-not-found-link">返回指令库</Link></div>;
   }
 
   // ── Not found or not published ─────────────────────────────
@@ -130,13 +144,14 @@ export default function PromptDetail() {
   const filledContent = fillPromptVariables(prompt.content, variableValues);
   const filledVariableCount = promptVariables.filter(variable => variableValues[variable.token]?.trim()).length;
   const hasAnyVariableValue = filledVariableCount > 0;
-  const trialState = { returnTo, prefillText: filledContent };
+  const trialState = { returnTo, prefillText: variableValues['{{input}}'] || '', templateVariables: Object.fromEntries(Object.entries(variableValues).filter(([key, value]) => key !== '{{input}}' && value.trim())) };
   const isLongPrompt = prompt.content.length > 1800 || prompt.content.split('\n').length > 32;
   const summaryParts = splitPromptSummary(prompt.summary ?? '');
 
   // ── Render published prompt ────────────────────────────────
   return (
     <div className="prompt-detail">
+      {copyError && <p role="alert" className="detail-copy-error">复制失败，请手动选择并复制指令内容。</p>}
       <SEOHead
         title={prompt.title}
         description={prompt.summary || prompt.content.slice(0, 160)}
@@ -468,6 +483,7 @@ export default function PromptDetail() {
               <div className="detail-variable-preview">
                 <div className="detail-variable-preview-head">
                   <span>实时预览</span>
+                  <button type="button" aria-expanded={isPreviewExpanded} onClick={() => setIsPreviewExpanded(value => !value)}>{isPreviewExpanded ? '收起预览' : '查看完整预览'}</button>
                   {hasAnyVariableValue && (
                     <button
                       type="button"
@@ -477,7 +493,7 @@ export default function PromptDetail() {
                     </button>
                   )}
                 </div>
-                <pre>{filledContent}</pre>
+                <pre className={isPreviewExpanded ? 'is-expanded' : ''}>{filledContent}</pre>
               </div>
               <div className="detail-variable-actions">
                 {canTryPrompt(prompt) && (
@@ -596,6 +612,7 @@ export default function PromptDetail() {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={() => navigate(`/prompts/${prompt.id}/run`, { state: trialState })}
         title="登录后开始试用"
         description="登录后即可试用这条指令。"
       />

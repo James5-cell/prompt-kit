@@ -222,6 +222,7 @@
 
 .filter-tag-row {
   flex-direction: column;
+  align-items: stretch;
   gap: 7px;
   padding-top: 7px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -292,8 +293,11 @@
 
 .tag-chips-inline.is-expanded {
   flex-wrap: wrap;
-  overflow: visible;
+  overflow-x: auto;
 }
+
+.tag-chips-inline { width: 100%; max-width: 100%; }
+.tag-chip-option { max-width: 100%; overflow-wrap: anywhere; }
 
 .tag-chip-option {
   flex-shrink: 0;
@@ -486,6 +490,13 @@
 
 .icon-action-btn:hover {
   color: var(--text);
+}
+
+.prompt-actions-group .icon-action-btn:has(span) {
+  width: auto;
+  gap: 5px;
+  padding-inline: 12px;
+  font-size: 13px;
 }
 
 .fav-action-btn:hover {
@@ -890,6 +901,9 @@
     flex-direction: column;
   }
 
+  .prompt-card-actions { align-items: stretch; }
+  .prompt-actions-group { margin-left: 0; justify-content: flex-start; }
+
   /* Touch targets: filter/search controls keep >=44px height at 375px width */
   .search-input,
   .admin-status-select,
@@ -908,4 +922,8 @@
   .tag-popover-dropdown {
     min-width: 260px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-panel-body { animation: none; }
 }

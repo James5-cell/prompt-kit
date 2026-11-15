@@ -523,6 +523,8 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.detail-variable-preview pre:not(.is-expanded) { max-height: 96px; overflow: hidden; }
+.detail-variable-preview pre.is-expanded { max-height: 50vh; }
 
 .detail-variable-actions {
   margin-top: 12px;
@@ -1173,4 +1175,12 @@
   flex-shrink: 0;
   position: relative;
   top: -1px;
+}
+.detail-copy-error {
+  margin: 12px auto;
+  max-width: 800px;
+  padding: 12px 16px;
+  color: var(--text);
+  background: #48221f;
+  border-radius: 8px;
 }

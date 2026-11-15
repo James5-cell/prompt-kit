@@ -75,7 +75,7 @@ export default function LoginModal({
   return (
     <div className="login-modal-overlay" onClick={handleBackdropClick}>
       <div className="login-modal-card" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
-        <button className="login-modal-close" onClick={onClose} aria-label="Close modal">
+        <button className="login-modal-close" onClick={onClose} aria-label="关闭登录窗口">
           <X size={18} />
         </button>
         <div className="login-modal-icon">🔒</div>

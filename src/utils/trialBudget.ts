@@ -8,6 +8,17 @@ export const TRIAL_INPUT_TOKENS = TRIAL_CONTEXT_TOKENS - TRIAL_OUTPUT_TOKENS - T
 export const TRIAL_MAX_INPUT_CHARS = 2000;
 
 export type BudgetMessage = { role: string; content: string };
+/** Fill only placeholders present in the canonical template; {{input}} remains the user's message. */
+export function fillTrialVariables(content: string, values: unknown): string | null {
+  if (values == null) return content;
+  if (typeof values !== 'object' || Array.isArray(values)) return null;
+  const entries = Object.entries(values);
+  if (entries.length > 50 || entries.some(([key, value]) => key === '{{input}}' || typeof value !== 'string' || value.length > 2000 || value.includes('{{input}}'))) return null;
+  const allowed = new Set(content.match(/\{\{([^{}\n]+)\}\}|\{([^{}\n]+)\}|\[([^\]\n[]{2,80})\]|<([A-Za-z][\w -]{1,40})>/g) || []);
+  if (entries.some(([key]) => !allowed.has(key))) return null;
+  const replacements = new Map(entries as [string, string][]);
+  return content.replace(/\{\{([^{}\n]+)\}\}|\{([^{}\n]+)\}|\[([^\]\n[]{2,80})\]|<([A-Za-z][\w -]{1,40})>/g, token => replacements.get(token)?.trim() || token);
+}
 export function estimateTokens(text: string): number {
   return Math.ceil(new TextEncoder().encode(text).length / 2);
 }

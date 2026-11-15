@@ -5,6 +5,7 @@ import { Icon as RiIcon } from '@iconify/react';
 import type { Prompt } from '../types';
 import { canTryPrompt, USAGE_LABELS } from '../utils/promptUsage';
 import { getPromptSummary, getPromptUsagePlan } from '../utils/promptDisplay';
+import { isPublishedStatus } from '../services/promptService';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -23,7 +24,7 @@ export default function PromptCard({ prompt, isAdmin = false, returnTo, category
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const detailUrl = isAdmin ? `/prompts/${prompt.id}` : `/p/${prompt.id}`;
+  const detailUrl = isAdmin && (!isPublishedStatus(prompt.status) || prompt.visibility === 'private') ? `/prompts/${prompt.id}` : `/p/${prompt.id}`;
   const linkState = returnTo ? { returnTo } : undefined;
   const usagePlan = getPromptUsagePlan(prompt);
   const mode = usagePlan.mode;

@@ -26,6 +26,11 @@
 .pk-mascot-dock[data-mode="guarded"] {
   transform: translate3d(calc(-50% + var(--pk-x, 0vw)), var(--pk-hidden-offset), 0);
 }
+.pk-mascot-dock[data-scrolling="true"]:not(:focus-within) {
+  opacity: 0;
+  pointer-events: none;
+}
+.pk-mascot-dock[data-scrolling="true"]:not(:focus-within) .pk-mascot-button { pointer-events: none; }
 .pk-mascot-button {
   position: relative;
   display: block;

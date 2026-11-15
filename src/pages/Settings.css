@@ -394,4 +394,10 @@
   .api-key-inline button {
     min-height: 44px;
   }
+
+  .model-select, .settings-input { font-size: 16px; }
+}
+
+@media (max-width: 380px) {
+  .api-key-inline { grid-template-columns: 1fr; }
 }

@@ -43,7 +43,7 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({
   return (
     <section className="relative mx-auto mb-10 flex max-w-4xl flex-col items-center text-center">
       {/* ── 2. 主标题：清晰有力，克制排版 ── */}
-      <h1 className="mb-3 text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
+      <h1 className="dashboard-hero-title mb-3 text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
         找到实用指令，立即体验效果
       </h1>
 

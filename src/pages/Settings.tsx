@@ -160,7 +160,6 @@ export default function Settings() {
       if (!isValid) {
         setBtn('error');
         setTestResults((prev) => ({ ...prev, [provider]: 'error' }));
-        setTimeout(() => setBtn('idle'), 3000);
         return;
       }
 
@@ -184,7 +183,6 @@ export default function Settings() {
     } catch (error: unknown) {
       setBtn('error');
       setTestResults((prev) => ({ ...prev, [provider]: 'error' }));
-      setTimeout(() => setBtn('idle'), 3000);
       console.error(`Failed to save ${provider} API key:`, error);
     }
   }
@@ -331,7 +329,7 @@ export default function Settings() {
     const state = buttonStates[provider];
     if (state === 'loading') return { label: '测试中…', disabled: true, style: {} };
     if (state === 'success') return { label: '已保存', disabled: true, style: { background: 'var(--success)', color: 'var(--bg)' } };
-    if (state === 'error')   return { label: '连接失败',  disabled: true, style: { background: 'var(--danger)', color: 'var(--text)' } };
+    if (state === 'error')   return { label: '重试', disabled: false, style: {} };
     return { label: '保存并测试', disabled: false, style: {} };
   }
 
@@ -474,6 +472,7 @@ export default function Settings() {
                           onChange={(event) => {
                             apiKeySetterByProvider[provider.id](event.target.value);
                             setTestResults(prev => ({ ...prev, [provider.id]: null }));
+                            setButtonStates(prev => ({ ...prev, [provider.id]: 'idle' }));
                           }}
                           placeholder={provider.placeholder}
                           autoComplete="off"

@@ -649,6 +649,21 @@
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.code-copy-button { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+@media (max-width: 768px) {
+  .console-textarea, .deck-textarea { font-size: 16px; }
+  .hud-glass-btn { min-height: 44px; height: auto; min-width: 44px; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-runner .animate-ping, .prompt-runner .animate-pulse,
+  .prompt-runner .animate-spin, .conversion-card { animation: none !important; }
+  .conversion-action-item { transition: none; }
 }
 
 .conversion-action-item:hover {

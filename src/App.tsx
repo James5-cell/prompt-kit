@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Routes, Route, useLocation } from 'react-router-dom';
 import { db } from './storage/db';
 import { initFirebase } from './storage/firebase';
 import { AuthProvider } from './auth/AuthContext';
@@ -36,7 +36,7 @@ function ConditionalLayout({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
 }
 
-function App() {
+function AppShell() {
   useEffect(() => {
     db.init().catch((error) => {
       console.error('Failed to initialize database:', error);
@@ -44,7 +44,7 @@ function App() {
   }, []);
 
   return (
-    <BrowserRouter>
+    <>
       <PostSomaAnalytics />
       <AuthProvider>
         <ConditionalLayout>
@@ -74,8 +74,11 @@ function App() {
         </ConditionalLayout>
         <PromptKitMascot />
       </AuthProvider>
-    </BrowserRouter>
+    </>
   );
 }
+
+const router = createBrowserRouter([{ path: '*', element: <AppShell /> }]);
+function App() { return <RouterProvider router={router} />; }
 
 export default App;

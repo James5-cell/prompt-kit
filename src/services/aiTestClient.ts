@@ -9,6 +9,7 @@ export type ExecuteChatOptions = {
   signal?: AbortSignal;
   promptId?: string;
   systemPrompt?: string;
+  templateVariables?: Record<string, string>;
   messages: ChatMessageItem[];
   provider?: string;
   model?: string;
@@ -114,6 +115,7 @@ export async function executeChatStream(
     body: JSON.stringify({
       promptId: input.promptId,
       systemPrompt: input.systemPrompt,
+      templateVariables: input.templateVariables,
       messages: input.messages,
       provider: input.provider,
       model: input.model,

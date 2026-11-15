@@ -1,4 +1,4 @@
-import { buildTrialSystem, estimateContext, getTrialInputLimit, trialBudgetError, TRIAL_INPUT_TOKENS } from '../utils/trialBudget';
+import { buildTrialSystem, fillTrialVariables, estimateContext, getTrialInputLimit, trialBudgetError, TRIAL_INPUT_TOKENS } from '../utils/trialBudget';
 import { Link } from 'react-router-dom';
 import { canTryPrompt, validateTrialInput } from '../utils/promptUsage';
 import { getPromptUsagePlan } from '../utils/promptDisplay';
@@ -37,6 +37,7 @@ export interface ChatMessage {
 }
 
 export const MAX_TURNS = 5;
+const scrollBehavior = (): ScrollBehavior => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 
 export default function PromptRunner() {
   useNoIndex();
@@ -47,6 +48,8 @@ export default function PromptRunner() {
   const { isAdmin } = useAuth();
   
   const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   
@@ -75,20 +78,25 @@ export default function PromptRunner() {
   const failedInputRef = useRef('');
   const topRef = useRef<HTMLDivElement>(null);
   const setupInputRef = useRef<HTMLTextAreaElement>(null);
+  const routeState = location.state as { prefillText?: unknown; templateVariables?: unknown } | null;
+  const templateVariables = routeState?.templateVariables;
+  const filledTemplate = prompt ? fillTrialVariables(prompt.content, templateVariables) : null;
+  const trialPrompt = prompt && filledTemplate !== null ? { ...prompt, content: filledTemplate } : prompt;
 
   useEffect(() => {
     setPrompt(null);
     setMessages([]);
     setTestInput('');
     setTestError('');
+    setLoadError('');
     let active = true;
     if (id) promptService.getPrompt(id).then(loaded => {
       if (!active) return;
       if (loaded) { setPrompt(loaded); setIsFavorite(!!loaded.favorite); }
-      else navigate(returnTo);
-    }).catch(() => { if (active) navigate(returnTo); });
+      else setLoadError('找不到这条指令，可能已被删除。');
+    }).catch(() => { if (active) setLoadError('读取失败，请检查网络后重试。'); });
     return () => { active = false; requestRef.current?.abort(); requestRef.current = null; };
-  }, [id, returnTo]);
+  }, [id, loadAttempt]);
 
   useEffect(() => {
     if (!prompt) return;
@@ -164,7 +172,7 @@ export default function PromptRunner() {
   // Auto-scroll chat feed when messages update or streaming
   useEffect(() => {
     if (messages.length > 0) {
-      chatFeedEndRef.current?.scrollIntoView({ behavior: isRunning ? 'auto' : 'smooth' });
+      chatFeedEndRef.current?.scrollIntoView({ behavior: isRunning ? 'auto' : scrollBehavior() });
     }
   }, [messages, isRunning]);
 
@@ -176,13 +184,14 @@ export default function PromptRunner() {
       setIsFavorite(!!updated.favorite);
     } catch (err) {
       console.error('Failed to toggle favorite:', err);
+      setTestError('更新推荐状态失败，请重试。');
     }
   };
 
   const handleCopyPrompt = async () => {
     if (!prompt) return;
     try {
-      await navigator.clipboard.writeText(prompt.content);
+      await navigator.clipboard.writeText(filledTemplate ?? prompt.content);
       setCopiedPrompt(true);
       setTimeout(() => setCopiedPrompt(false), 2000);
     } catch { setTestError('复制失败，请手动选中完整指令复制。'); }
@@ -192,24 +201,25 @@ export default function PromptRunner() {
     if (!prompt || !canTryPrompt(prompt) || isRunning || requestRef.current || isMaxTurnsReached) return;
 
     const rawInput = (textToSend !== undefined ? textToSend : testInput).trim();
-    const inputError = validateTrialInput(prompt, rawInput);
+    if (filledTemplate === null) { setTestError('指令变量无效，请返回详情页检查。'); return; }
+    const inputError = validateTrialInput(trialPrompt!, rawInput);
     if (inputError) {
       setTestError(inputError);
       requestAnimationFrame(() => {
         setupInputRef.current?.focus();
-        setupInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setupInputRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
       });
       return;
     }
     const userMsgContent = rawInput;
 
     const firstInput = messages.find(m => m.role === 'user')?.content ?? userMsgContent;
-    const effectiveSystemPrompt = buildTrialSystem(prompt.content, firstInput);
+    const effectiveSystemPrompt = buildTrialSystem(filledTemplate, firstInput);
     const historyForApi: ChatMessageItem[] = [
       ...messages.filter(m => !m.isStreaming && m.content.trim()).map(m => ({ role: m.role, content: m.content })),
       { role: 'user', content: userMsgContent },
     ];
-    const budgetError = trialBudgetError(effectiveSystemPrompt, historyForApi, getTrialInputLimit(prompt.content));
+    const budgetError = trialBudgetError(effectiveSystemPrompt, historyForApi, getTrialInputLimit(filledTemplate));
     if (budgetError) { setTestError(budgetError); return; }
 
     const controller = new AbortController();
@@ -251,6 +261,7 @@ export default function PromptRunner() {
         {
           signal: controller.signal,
           promptId: prompt.id,
+          templateVariables: templateVariables as Record<string, string> | undefined,
           systemPrompt: effectiveSystemPrompt,
           messages: historyForApi,
           provider: hasAnyApiKey ? selectedProvider : '',
@@ -325,6 +336,7 @@ export default function PromptRunner() {
   };
 
   const handleResetChat = () => {
+    if ((messages.length > 0 || testInput.trim()) && !window.confirm('重新开始将清空当前输入和对话，确定继续吗？')) return;
     requestRef.current?.abort();
     requestRef.current = null;
     setIsRunning(false);
@@ -334,14 +346,15 @@ export default function PromptRunner() {
     setIsFocusMode(false);
     setShowTemplateDuringChat(false);
     setTimeout(() => {
-      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      topRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
     }, 50);
   };
 
+  if (loadError) return <div className="p-8" role="alert"><p>{loadError}</p><div className="flex flex-wrap gap-3 mt-4"><button className="btn-primary" onClick={() => setLoadAttempt(n => n + 1)}>重试</button><Link className="btn-secondary" to={returnTo}>返回指令库</Link></div></div>;
   if (!prompt) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-80px)] text-[var(--text-faint)] font-mono" role="status" aria-busy="true">
-        Initializing workbench...
+        <div className="flex justify-center items-center h-[calc(100vh-80px)] text-[var(--text-faint)] font-mono" role="status" aria-busy="true">
+        正在准备试用…
       </div>
     );
   }
@@ -376,7 +389,7 @@ export default function PromptRunner() {
         jsonLd={jsonLd}
       />
 
-      <main className={`max-w-4xl mx-auto p-4 pb-20 md:p-8 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
+      <main className={`prompt-runner max-w-4xl mx-auto p-4 pb-20 md:p-8 flex flex-col gap-6 text-[var(--text-muted)] relative z-10 ${isFocusMode ? 'focus-mode-active' : ''}`}>
         {!isFocusMode && (
           <RunnerHeader 
             title={prompt.title}
@@ -384,16 +397,18 @@ export default function PromptRunner() {
             lastUsedAt={prompt.lastUsedAt}
             isFavorite={isFavorite}
             onToggleFavorite={handleToggleFavorite}
-            onBack={() => navigate('/dashboard')}
+            onBack={() => navigate(returnTo)}
             onEditPrompt={() => navigate(`/prompts/${prompt.id}`)}
             isAdmin={isAdmin}
           />
         )}
 
-        <p className="rounded-lg border border-zinc-700 p-3 text-sm leading-relaxed text-zinc-300">
-          轻量试用：当前指令每次最多输入 {getTrialInputLimit(prompt.content)} 字符。只处理文本片段；完整文章、书籍或复杂工作流请复制到其他 Agent。
-          <span className="mt-1 block text-xs text-zinc-400">当前估算输入上下文：{estimateContext(buildTrialSystem(prompt.content, messages.find(m => m.role === 'user')?.content ?? testInput), [...messages.filter(m => m.content.trim()), ...(!isRunning && testInput.trim() ? [{ role: 'user', content: testInput }] : [])])} / {TRIAL_INPUT_TOKENS} tokens（含指令与历史，估算值）；另预留输出空间。</span>
-        </p>
+        <details className="rounded-lg border border-zinc-700 px-3 py-2 text-sm leading-relaxed text-zinc-300">
+          <summary className="cursor-pointer">试用范围与输入预算</summary>
+          <p className="mt-2">每次最多输入 {getTrialInputLimit(filledTemplate ?? prompt.content)} 字符。只处理文本片段；完整文章、书籍或复杂工作流请复制到其他 Agent。</p>
+          <p className="mt-1 text-xs text-zinc-400">当前估算输入上下文：{estimateContext(buildTrialSystem(filledTemplate ?? prompt.content, messages.find(m => m.role === 'user')?.content ?? testInput), [...messages.filter(m => m.content.trim()), ...(!isRunning && testInput.trim() ? [{ role: 'user', content: testInput }] : [])])} / {TRIAL_INPUT_TOKENS} tokens（含指令与历史，估算值）；另预留输出空间。</p>
+        </details>
+        {Boolean(templateVariables) && filledTemplate !== null && Object.keys(templateVariables as object).length > 0 && <p role="status" className="text-sm text-cyan-200">已带入详情页填写的指令变量。请在下方输入要处理的内容。</p>}
         {isRunning && <button type="button" className="btn-secondary self-start" onClick={() => { requestRef.current?.abort(); requestRef.current = null; setIsRunning(false); setMessages(prev => prev.filter(m => !m.isStreaming || m.content.trim()).map(m => m.isStreaming ? { ...m, isStreaming: false, finishReason: 'interrupted' } : m)); setTestError('已停止生成，部分输出可能不完整。'); }}>停止生成</button>}
         <div className="flex flex-col gap-6" ref={topRef}>
           {/* Initial State / Config View (when no messages yet) */}
@@ -401,8 +416,8 @@ export default function PromptRunner() {
             <div className="flex flex-col gap-6 w-full animate-in fade-in duration-200">
               {testError && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-200">{testError}</p>}
               <RunnerSetupPanel 
-                promptContent={prompt.content}
-                prompt={prompt}
+                promptContent={filledTemplate ?? prompt.content}
+                prompt={trialPrompt ?? prompt}
                 hasAnyApiKey={hasAnyApiKey}
                 selectedProvider={selectedProvider}
                 setSelectedProvider={setSelectedProvider}
@@ -457,7 +472,7 @@ export default function PromptRunner() {
                     </button>
                   </div>
                   <pre className="mono-code">
-                    <code>{prompt.content}</code>
+                    <code>{filledTemplate ?? prompt.content}</code>
                   </pre>
                 </div>
               )}
@@ -537,22 +552,22 @@ function RunnerHeader({
       <div>
         <div className="flex items-center gap-2 text-[11px] uppercase font-bold tracking-wider text-zinc-400 mb-1.5">
           <button onClick={onBack} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
-            <RiIcon icon="ri:arrow-left-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Dashboard
+            <RiIcon icon="ri:arrow-left-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> 返回
           </button>
           <span>/</span>
-          <span className="text-cyan-400">Interactive Sandbox</span>
+          <span className="text-cyan-400">指令试用</span>
         </div>
         <h1 className="text-2xl font-extrabold text-white tracking-tight">
           {title}
         </h1>
         {usageCount !== undefined && (
           <p className="text-xs text-zinc-400 mt-1.5 flex items-center gap-2 font-normal">
-            <span>Runs: <strong className="text-zinc-200">{usageCount}</strong></span>
+            <span>试用次数：<strong className="text-zinc-200">{usageCount}</strong></span>
             {lastUsedAt && (
               <>
                 <span>•</span>
                 <span>
-                  Last active:{' '}
+                  上次使用：{' '}
                   <time dateTime={new Date(lastUsedAt).toISOString()} className="text-zinc-300">
                     {new Date(lastUsedAt).toLocaleDateString()}
                   </time>
@@ -588,7 +603,7 @@ function RunnerHeader({
             className="btn-secondary py-1.5 px-3.5 text-xs text-zinc-300 hover:text-white"
             onClick={onEditPrompt}
           >
-            Edit Template
+            编辑指令
           </button>
         )}
       </nav>
@@ -656,25 +671,25 @@ function PlaygroundStatusBar({
         <button
           onClick={() => setShowTemplate(prev => !prev)}
           className={`hud-glass-btn ${showTemplate ? 'active' : ''}`}
-          title="View Prompt Template"
+          title="查看指令模板"
         >
           <RiIcon icon="ri:file-text-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
-          <span>{showTemplate ? 'Hide Template' : 'Template'}</span>
+          <span>{showTemplate ? '隐藏模板' : '查看模板'}</span>
         </button>
 
         <button
           onClick={onReset}
           className="hud-glass-btn"
-          title="Restart Sandbox"
+          title="重新开始"
         >
           <RiIcon icon="ri:refresh-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
-          <span className="hidden sm:inline">Reset</span>
+          <span>重置</span>
         </button>
 
         <button
           onClick={() => setIsFocusMode(!isFocusMode)}
           className={`hud-glass-btn ${isFocusMode ? 'active' : ''}`}
-          title={isFocusMode ? 'Exit Fullscreen Focus' : 'Fullscreen Focus Mode'}
+          aria-label={isFocusMode ? '退出专注模式' : '进入专注模式'}
         >
           <RiIcon icon={isFocusMode ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-line'} width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
         </button>
@@ -727,22 +742,14 @@ function RunnerSetupPanel({
       {/* 1. Prompt Preview Section */}
       <section className="sandbox-preview-section">
         <div className="sandbox-preview-header">
-          <span className="sandbox-preview-title">Prompt Template</span>
+          <span className="sandbox-preview-title">指令模板</span>
           <button 
             type="button"
             className="btn-ghost preview-toggle-btn"
+            aria-expanded={!isTemplateCollapsed}
             onClick={() => setIsTemplateCollapsed(!isTemplateCollapsed)}
           >
-            <span className="btn-label-desktop">
-              {isTemplateCollapsed
-                ? <><RiIcon icon="ri:arrow-down-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Show Template</>
-                : <><RiIcon icon="ri:arrow-up-s-line"   width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Hide Template</>}
-            </span>
-            <span className="btn-label-mobile">
-              {isTemplateCollapsed
-                ? <><RiIcon icon="ri:arrow-down-s-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Show</>
-                : <><RiIcon icon="ri:arrow-up-s-line"   width={ICON_SIZE.xs} height={ICON_SIZE.xs} style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: '3px' }} /> Hide</>}
-            </span>
+            {isTemplateCollapsed ? '展开模板' : '收起模板'}
           </button>
         </div>
         {!isTemplateCollapsed && (
@@ -776,7 +783,7 @@ function RunnerSetupPanel({
             </span>
             <span className="notice-text">
               平台免费模型：每次体验最多 5 轮。长内容请缩短为片段；个人 API Key 可在{' '}
-              <a href="/settings" className="notice-link font-medium">Settings</a>中设置，仍遵守轻量试用的输入预算。
+              <a href="/settings" className="notice-link font-medium">模型设置</a>中设置，仍遵守轻量试用的输入预算。
             </span>
           </div>
         )}
@@ -785,7 +792,7 @@ function RunnerSetupPanel({
         {hasAnyApiKey && (
           <div className="sandbox-engine-row">
             <div className="engine-select-group">
-              <label htmlFor="provider-select">AI Provider</label>
+              <label htmlFor="provider-select">服务商</label>
               <select
                 id="provider-select"
                 className="input-base"
@@ -802,7 +809,7 @@ function RunnerSetupPanel({
             </div>
             
             <div className="engine-select-group">
-              <label htmlFor="model-select">AI Model</label>
+              <label htmlFor="model-select">模型</label>
               <select
                 id="model-select"
                 className="input-base"
@@ -811,7 +818,7 @@ function RunnerSetupPanel({
                 disabled={availableModels.length === 0}
               >
                 {availableModels.length === 0 ? (
-                  <option value="">No models available</option>
+                  <option value="">暂无可用模型</option>
                 ) : (
                   availableModels.map(model => (
                     <option key={model.id} value={model.id}>
@@ -835,7 +842,7 @@ function RunnerSetupPanel({
             value={testInput}
             onChange={(e) => { setTestInput(e.target.value); onInputChange(); }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !window.matchMedia('(pointer: coarse)').matches) {
                 e.preventDefault();
                 onRun();
               }
@@ -847,7 +854,7 @@ function RunnerSetupPanel({
           {prefilledInput && testInput === prefilledInput && (
             <div className="sandbox-prefill-notice" role="status">
               <RiIcon icon="ri:magic-line" width={ICON_SIZE.sm} height={ICON_SIZE.sm} />
-              <span>已带入详情页填写好的成品指令，可直接运行。</span>
+              <span>已带入详情页填写的输入内容，请确认后运行。</span>
               <button
                 type="button"
                 onClick={() => {
@@ -864,7 +871,7 @@ function RunnerSetupPanel({
             <span className="console-hint">
               {promptContent.includes('{{input}}')
                 ? '{{input}} 会在首轮替换为下方输入；请输入正文后再运行。'
-                : 'Enter 运行，Shift+Enter 换行。先填写正文或使用示例输入。'}
+                : '填写正文或使用示例输入，然后点击运行。桌面端可按 Enter 运行。'}
             </span>
             <button
               className="btn-primary console-execute-btn"
@@ -905,15 +912,19 @@ function InteractiveChatFeed({
   onRetryLast: () => void;
 }) {
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState('');
 
-  const handleCopyMessage = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedMsgId(id);
-    setTimeout(() => setCopiedMsgId(null), 2000);
+  const handleCopyMessage = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyError(''); setCopiedMsgId(id);
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    } catch { setCopyError('复制失败，请手动选择内容复制。'); }
   };
 
   return (
     <div className="playground-feed">
+      {copyError && <p role="alert" className="text-red-300 text-sm">{copyError}</p>}
       {messages.map((msg, index) => {
         if (msg.role === 'user') {
           // Calculate user turn index
@@ -963,7 +974,7 @@ function InteractiveChatFeed({
                     <button
                       onClick={() => handleCopyMessage(msg.content, msg.id)}
                       className="btn-ghost py-1 px-2.5 text-[11px] gap-1 flex items-center text-zinc-400 hover:text-white transition-colors"
-                      title="Copy response"
+                                    title="复制回复"
                     >
                       {copiedMsgId === msg.id ? (
                         <><RiIcon icon="ri:checkbox-circle-fill" width={ICON_SIZE.xs} height={ICON_SIZE.xs} className="text-emerald-400" /> Copied</>
@@ -1041,9 +1052,10 @@ function InteractiveChatFeed({
                                     {match ? match[1] : 'code'}
                                   </span>
                                   <button
-                                    onClick={() => navigator.clipboard.writeText(content)}
-                                    className="hover:text-white transition-colors"
-                                    title="Copy Code"
+                                    onClick={() => handleCopyMessage(content, `${msg.id}-code`)}
+                                    className="code-copy-button hover:text-white transition-colors"
+                                    aria-label={copiedMsgId === `${msg.id}-code` ? '代码已复制' : '复制代码'}
+                                    title={copiedMsgId === `${msg.id}-code` ? '代码已复制' : '复制代码'}
                                   >
                                     <RiIcon icon="ri:clipboard-line" width={12} height={12} />
                                   </button>
@@ -1090,7 +1102,7 @@ function InteractiveChatFeed({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-semibold text-xs text-red-400">
               <RiIcon icon="ri:error-warning-line" width={ICON_SIZE.md} height={ICON_SIZE.md} />
-              Execution Error
+              试用失败
             </div>
             <button
               onClick={onRetryLast}
@@ -1142,7 +1154,7 @@ function ContinuousChatInput({
           onClick={onRestart}
           className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 shrink-0 text-zinc-200 hover:text-white"
         >
-          <RiIcon icon="ri:refresh-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> Play Again
+          <RiIcon icon="ri:refresh-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} /> 重新开始
         </button>
       </div>
     );
@@ -1152,11 +1164,12 @@ function ContinuousChatInput({
     <div className={`floating-input-deck ${isFocused ? 'focused' : ''}`}>
       <textarea
         className="deck-textarea"
+        aria-label="输入追问或新的文本片段"
         placeholder={`第 ${turnCount + 1} 轮：输入追问或新的文本片段…`}
         value={testInput}
         onChange={(e) => { setTestInput(e.target.value); onInputChange(); }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !window.matchMedia('(pointer: coarse)').matches) {
             e.preventDefault();
             onSend();
           }
@@ -1169,7 +1182,7 @@ function ContinuousChatInput({
 
       <div className="deck-footer">
         <span className="text-[11px] text-zinc-400">
-          第 <strong className="text-cyan-400">{turnCount + 1}</strong> 轮{maxTurns ? ` / ${maxTurns}` : ""} · Enter 发送，Shift+Enter 换行
+          第 <strong className="text-cyan-400">{turnCount + 1}</strong> 轮{maxTurns ? ` / ${maxTurns}` : ""} · 点击发送继续对话
         </span>
 
         <button
@@ -1226,10 +1239,10 @@ function ConversionCard({
           </div>
           <div>
             <h3 className="text-base font-bold text-white tracking-tight m-0">
-              🎉 5 轮互动试玩已完成！ / Demo Completed
+              5 轮互动试用已完成
             </h3>
             <p className="text-xs text-zinc-300 mt-1 m-0">
-              你已直观体验该 Prompt 的完整多轮效果。选择以下操作进行深度使用或收藏管理：
+              你已体验这条指令的多轮效果。可复制指令、配置模型或重新开始：
             </p>
           </div>
         </div>
@@ -1239,11 +1252,10 @@ function ConversionCard({
       <div className="conversion-grid">
         {/* 管理员推荐 */}
         {isAdmin && (
-        <div 
+        <button type="button"
           onClick={onToggleFavorite}
+          aria-pressed={isFavorite}
           className="conversion-action-item group"
-          role="button"
-          tabIndex={0}
         >
           <div className={`conversion-action-icon ${isFavorite ? 'text-amber-400 border-amber-400/40 bg-amber-400/10' : ''}`}>
             <RiIcon 
@@ -1255,22 +1267,20 @@ function ConversionCard({
           <div className="conversion-action-content">
             <span className="conversion-action-title flex items-center gap-1.5">
               {isFavorite ? '已加入首页推荐' : '加星并加入首页推荐'}
-              {isFavorite && <span className="text-[10px] text-amber-400 font-normal">(Saved)</span>}
+              {isFavorite && <span className="text-[10px] text-amber-400 font-normal">(已保存)</span>}
             </span>
             <span className="conversion-action-desc">
               管理员加星的指令会进入首页精选。
             </span>
           </div>
-        </div>
+        </button>
 
         )}
 
         {/* 2. 复制完整 Prompt */}
-        <div 
+        <button type="button"
           onClick={onCopyPrompt}
           className="conversion-action-item group"
-          role="button"
-          tabIndex={0}
         >
           <div className={`conversion-action-icon ${copiedPrompt ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10' : ''}`}>
             <RiIcon 
@@ -1287,35 +1297,31 @@ function ConversionCard({
               一键带走完整设定，直接粘贴到 ChatGPT 或 Claude 使用。
             </span>
           </div>
-        </div>
+        </button>
 
-        {/* 3. 配置个人 API Key (BYOK) */}
-        <div 
+        {/* 3. 配置个人 API Key */}
+        <button type="button"
           onClick={onGoSettings}
           className="conversion-action-item group border-cyan-500/30 hover:border-cyan-400/60"
-          role="button"
-          tabIndex={0}
         >
           <div className="conversion-action-icon text-cyan-400 border-cyan-500/30 bg-cyan-500/10">
             <RiIcon icon="ri:key-2-line" width={ICON_SIZE.lg} height={ICON_SIZE.lg} />
           </div>
           <div className="conversion-action-content">
             <span className="conversion-action-title text-cyan-400 flex items-center gap-1">
-              配置个人 API Key (BYOK)
+              配置个人 API Key
               <RiIcon icon="ri:arrow-right-line" width={ICON_SIZE.xs} height={ICON_SIZE.xs} />
             </span>
             <span className="conversion-action-desc">
-              前往 Settings 连接私有 Key，解锁无轮次限制与自由模型切换。
+              前往模型设置连接个人 Key，解锁无轮次限制与自由模型切换。
             </span>
           </div>
-        </div>
+        </button>
 
         {/* 4. 清空重玩 */}
-        <div 
+        <button type="button"
           onClick={onRestart}
           className="conversion-action-item group"
-          role="button"
-          tabIndex={0}
         >
           <div className="conversion-action-icon">
             <RiIcon icon="ri:refresh-line" width={ICON_SIZE.lg} height={ICON_SIZE.lg} />
@@ -1328,7 +1334,7 @@ function ConversionCard({
               重置对话历史，以新的输入变量开启新一轮沙盒体验。
             </span>
           </div>
-        </div>
+        </button>
       </div>
     </section>
   );

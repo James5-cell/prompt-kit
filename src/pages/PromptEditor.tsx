@@ -1,6 +1,6 @@
 import { buildTrialSystem, trialBudgetError, getTrialInputLimit } from '../utils/trialBudget';
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useBlocker, useParams, useNavigate } from 'react-router-dom';
 import { type Prompt, type PromptStatus, type Tag } from '../types';
 import { promptService } from '../services/promptService';
 import { tagService } from '../services/tagService';
@@ -38,6 +38,28 @@ export default function PromptEditor() {
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState('');
+  const initialValues = useRef<string | null>(null);
+  const allowNavigation = useRef(false);
+  const currentValues = JSON.stringify({ title, content, favorite, category, language, summary, status, usageMode, inputHint, outputHint, usageNotes, sampleInput, sampleOutput, selectedTagIds, newTagName });
+  const isDirty = initialValues.current !== null && initialValues.current !== currentValues;
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => isDirty && !allowNavigation.current && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search));
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    if (window.confirm('还有未保存的修改，确定离开吗？')) blocker.proceed();
+    else blocker.reset();
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!isLoading && !loadError && initialValues.current === null) initialValues.current = currentValues;
+  }, [isLoading, loadError, currentValues]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     // Load available tags
@@ -134,17 +156,19 @@ export default function PromptEditor() {
     }
     if (!title.trim()) {
       setSaveError('请输入指令名称。');
+      document.getElementById('prompt-title')?.focus();
       return;
     }
 
-    if (!content.trim()) { setSaveError('请输入完整指令内容。'); return; }
+    if (!content.trim()) { setSaveError('请输入完整指令内容。'); document.getElementById('prompt-content')?.focus(); return; }
     if (status === 'published' && (!inputHint.trim() || !outputHint.trim() || !usageNotes.trim())) {
-      setSaveError('发布前请补齐输入要求、输出说明和使用条件。'); return;
+      setSaveError('发布前请补齐输入要求、输出说明和使用条件。');
+      document.getElementById(!inputHint.trim() ? 'input-hint' : !outputHint.trim() ? 'output-hint' : 'usage-notes')?.focus(); return;
     }
     if (usageMode !== 'external') {
       const limit = getTrialInputLimit(content);
       if (limit === 0) { setSaveError('指令本身超出轻量试用预算，请精简指令或改为需要外部环境。'); return; }
-      if (status === 'published' && !sampleInput.trim()) { setSaveError('可试用指令发布前需要一个示例输入。'); return; }
+      if (status === 'published' && !sampleInput.trim()) { setSaveError('可试用指令发布前需要一个示例输入。'); document.getElementById('sample-input')?.focus(); return; }
       if (sampleInput.trim()) {
         const error = trialBudgetError(buildTrialSystem(content, sampleInput.trim()), [{ role: 'user', content: sampleInput.trim() }], limit);
         if (error) { setSaveError(`示例输入无法试用：${error}`); return; }
@@ -159,6 +183,7 @@ export default function PromptEditor() {
       } else {
         await promptService.updatePrompt(id, promptData);
       }
+      allowNavigation.current = true;
       navigate('/prompts');
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
